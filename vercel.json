@@ -1,0 +1,50 @@
+{
+  "buildCommand": "",
+  "outputDirectory": "public",
+  "framework": null,
+  "cleanUrls": false,
+  "trailingSlash": true,
+  "redirects": [
+    {
+      "source": "/uber-uns/",
+      "destination": "/ueber-uns/",
+      "permanent": true
+    },
+    {
+      "source": "/datenschutzerklaerung/",
+      "destination": "/datenschutz/",
+      "permanent": true
+    },
+    {
+      "source": "/preise-und-ausstellungen/",
+      "destination": "/ueber-uns/",
+      "permanent": true
+    },
+    {
+      "source": "/spalink-sievers-landschaftsarchitekten/",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/projects/821/",
+      "destination": "/projekte/ths-studentenwohnhaus-goettingen/",
+      "permanent": true
+    },
+    {
+      "source": "/projects/:slug/",
+      "destination": "/projekte/:slug/",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    }
+  ]
+}

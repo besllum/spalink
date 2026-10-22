@@ -1,0 +1,22 @@
+# Weiterleitungen alter WordPress-Adressen (IONOS / Apache)
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+RewriteRule ^uber-uns/?$ /ueber-uns/ [L,R=301]
+RewriteRule ^datenschutzerklaerung/?$ /datenschutz/ [L,R=301]
+RewriteRule ^preise-und-ausstellungen/?$ /ueber-uns/ [L,R=301]
+RewriteRule ^spalink-sievers-landschaftsarchitekten/?$ / [L,R=301]
+RewriteRule ^projects/821/?$ /projekte/ths-studentenwohnhaus-goettingen/ [L,R=301]
+RewriteRule ^projects/([^/]+)/?$ /projekte/$1/ [L,R=301]
+RewriteRule ^wp-content/uploads/(.*\.pdf)$ /dokumente/$1 [L,R=301,NC]
+
+ErrorDocument 404 /404.html
+<IfModule mod_expires.c>
+ ExpiresActive On
+ ExpiresByType image/webp "access plus 1 year"
+ ExpiresByType font/woff2 "access plus 1 year"
+ ExpiresByType text/css "access plus 1 month"
+ ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+AddType font/woff2 .woff2
+AddType image/webp .webp

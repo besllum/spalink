@@ -1,0 +1,429 @@
+#!/usr/bin/env python3
+"""Erzeugt die statische Website in public/ aus data/ und den Originalfotos in ../medien.
+Aufruf:  python3 build.py
+"""
+import json, re, os, html, shutil, unicodedata, hashlib
+from pathlib import Path
+from PIL import Image, ImageOps
+
+ROOT = Path(__file__).resolve().parent
+MEDIA = ROOT.parent / "medien"          # Originale (nicht im Repository)
+OUT = ROOT / "public"
+SITE = "https://spalink-sievers.de"
+NAME = "SPALINK-SIEVERS LandschaftsArchitekten"
+SIZES = (480, 960, 1600)
+Image.MAX_IMAGE_PIXELS = None
+
+E = html.escape
+N = lambda s: unicodedata.normalize("NFC", s)
+
+def slugify(s):
+    s = N(s).lower()
+    for a, b in (("ä","ae"),("ö","oe"),("ü","ue"),("ß","ss")):
+        s = s.replace(a, b)
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", s).strip("-")[:80] or "x"
+
+# ---------- Bilder ----------
+_media_index = None
+def media_path(rel):
+    """Findet eine Originaldatei in ../medien (Unicode-tolerant)."""
+    global _media_index
+    if _media_index is None:
+        _media_index = {N(str(p.relative_to(MEDIA))): p for p in MEDIA.rglob("*") if p.is_file()}
+    r = _media_index.get(N(rel))
+    if not r:  # WordPress-Zwischengröße (z. B. -300x225) -> Original
+        r = _media_index.get(N(re.sub(r"-\d+x\d+(\.\w+)$", r"\1", rel)))
+    return r
+
+def img(rel, alt="", sizes="(max-width: 760px) 100vw, 50vw", cls="", eager=False):
+    """Erzeugt WebP-Varianten und gibt ein <img> mit srcset zurück."""
+    info = image_variants(rel)
+    if not info:
+        return ""
+    srcset = ", ".join(f"/{u} {w}w" for u, w in info["v"])
+    mid = info["v"][min(1, len(info["v"]) - 1)][0]
+    return (f'<img src="/{mid}" srcset="{srcset}" sizes="{sizes}" width="{info["w"]}" height="{info["h"]}" '
+            f'alt="{E(alt)}"{" class=%s" % cls if cls else ""} {"fetchpriority=high" if eager else "loading=lazy"} decoding="async">')
+
+_cache = {}
+def image_variants(rel):
+    if rel in _cache:
+        return _cache[rel]
+    src = media_path(rel)
+    if not src:
+        print("  ! Bild fehlt:", rel); _cache[rel] = None; return None
+    stem = Path(rel).with_suffix("")
+    base = f"img/{stem.parent.as_posix()}/{slugify(stem.name)}"
+    with Image.open(src) as im:
+        im = ImageOps.exif_transpose(im)
+        if im.mode not in ("RGB", "RGBA"):
+            im = im.convert("RGBA" if "transparency" in im.info or im.mode in ("P", "LA") else "RGB")
+        W, H = im.size
+        v = []
+        for w in SIZES:
+            if w > W and v:
+                break
+            tw = min(w, W)
+            out = OUT / f"{base}-{tw}.webp"
+            if not out.exists():
+                out.parent.mkdir(parents=True, exist_ok=True)
+                im.resize((tw, round(H * tw / W)), Image.LANCZOS).save(out, "WEBP", quality=80, method=5)
+            v.append((f"{base}-{tw}.webp", tw))
+    _cache[rel] = {"v": v, "w": W, "h": H}
+    return _cache[rel]
+
+def largest(rel):
+    i = image_variants(rel)
+    return "/" + i["v"][-1][0] if i else ""
+
+# ---------- Seitenrahmen ----------
+NAV = [("Aktuell", "/aktuell/"), ("Über uns", "/ueber-uns/"), ("Projekte", "/projekte/"),
+       ("Team", "/team/"), ("Kontakt", "/kontakt/")]
+
+def layout(path, title, desc, body, active=None, og_image="", jsonld=None):
+    full_title = title if NAME in title else f"{title} | {NAME}"
+    nav = "".join(f'<li><a href="{u}"{" aria-current=page" if u == active else ""}>{E(n)}</a></li>' for n, u in NAV)
+    ld = f'<script type="application/ld+json">{json.dumps(jsonld, ensure_ascii=False)}</script>' if jsonld else ""
+    og = f'<meta property="og:image" content="{SITE}{og_image}">' if og_image else ""
+    page = f"""<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{E(full_title)}</title>
+<meta name="description" content="{E(desc)}">
+<link rel="canonical" href="{SITE}{path}">
+<meta property="og:type" content="website"><meta property="og:locale" content="de_DE">
+<meta property="og:title" content="{E(full_title)}"><meta property="og:description" content="{E(desc)}">
+<meta property="og:url" content="{SITE}{path}">{og}
+<link rel="preload" href="/assets/fonts/open-sans-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/style.css?v={ASSET_V}">
+<link rel="icon" href="/favicon.png">
+{ld}
+</head>
+<body>
+<a class="skip" href="#inhalt">Zum Inhalt springen</a>
+<header class="site-header">
+ <div class="wrap">
+  <a class="logo" href="/"><img src="/assets/logo.png" width="760" height="56" alt="{NAME}"></a>
+  <button class="nav-toggle" aria-label="Menü" aria-expanded="false" aria-controls="nav"><span></span><span></span><span></span></button>
+  <nav class="nav" id="nav" aria-label="Hauptmenü"><ul>{nav}</ul></nav>
+ </div>
+</header>
+<main id="inhalt">
+{body}
+</main>
+<footer class="site-footer">
+ <div class="wrap">
+  <div>{NAME}<br>Alte Herrenhäuser Str. 28 · 30419 Hannover<br>Telefon <a href="tel:+495119792590">0511 979 259-0</a> · <a href="mailto:info@spalink-sievers.de">info@spalink-sievers.de</a></div>
+  <nav aria-label="Rechtliches"><a href="/impressum/">Impressum</a><a href="/datenschutz/">Datenschutz</a></nav>
+ </div>
+</footer>
+<script src="/assets/main.js?v={ASSET_V}" defer></script>
+</body>
+</html>"""
+    write(path, page)
+
+PAGES = []
+def write(path, content):
+    f = OUT / path.strip("/") / "index.html" if path.endswith("/") else OUT / path.strip("/")
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(content, encoding="utf-8")
+    if path.endswith("/"):
+        PAGES.append(path)
+
+ORG = {"@context": "https://schema.org", "@type": "LandscapeArchitect" if False else "ProfessionalService",
+       "name": NAME, "url": SITE + "/", "telephone": "+49 511 979259-0", "email": "info@spalink-sievers.de",
+       "foundingDate": "1991",
+       "address": {"@type": "PostalAddress", "streetAddress": "Alte Herrenhäuser Str. 28",
+                   "postalCode": "30419", "addressLocality": "Hannover", "addressCountry": "DE"}}
+
+# ---------- Inhalte aus dem alten Seitenbaukasten (WPBakery) ----------
+WP = json.loads((ROOT / "data/wp-export.json").read_text())
+MEDIA_BY_ID = {m["id"]: N(re.sub(r"^.*/wp-content/uploads/", "", m["url"])) for m in WP["media"]}
+from urllib.parse import unquote
+MEDIA_BY_ID = {k: unquote(v) for k, v in MEDIA_BY_ID.items()}
+
+SLUG_MAP = {"uber-uns": "ueber-uns", "datenschutzerklaerung": "datenschutz", "spalink-sievers-landschaftsarchitekten": ""}
+
+def fix_links(h):
+    def doc(m):
+        rel = unquote(m.group(1))
+        src = media_path(rel)
+        if src and src.suffix.lower() == ".pdf":
+            dst = OUT / "dokumente" / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if not dst.exists(): shutil.copy2(src, dst)
+            return f'/dokumente/{rel}'
+        return largest(rel) or m.group(0)
+    h = re.sub(r'https?://(?:www\.)?spalink-sievers\.de/wp-content/uploads/([^"\'\s<>]+)', doc, h)
+    h = re.sub(r'https?://(?:www\.)?spalink-sievers\.de/projects/([^"/]+)/?', lambda m: f"/projekte/{PROJECT_SLUG.get(m.group(1), m.group(1))}/", h)
+    h = re.sub(r'https?://(?:www\.)?spalink-sievers\.de/([a-z0-9\-]+)/?(?=["#])', lambda m: f"/{SLUG_MAP.get(m.group(1), m.group(1))}/".replace("//", "/"), h)
+    h = re.sub(r'https?://(?:www\.)?spalink-sievers\.de/?(?=")', "/", h)
+    h = re.sub(r'\s(style|class)="[^"]*"', "", h)
+    return h
+
+def autop(t):
+    t = t.replace("&nbsp;", " ").strip()
+    if not t: return ""
+    blocks = re.split(r"\n\s*\n", t)
+    out = []
+    for b in blocks:
+        b = b.strip()
+        if not b: continue
+        if re.match(r"<(p|h\d|ul|ol|div|table|figure|blockquote)\b", b):
+            out.append(re.sub(r"(?<!>)\n(?!<)", "<br>\n", b))
+        else:
+            out.append("<p>" + b.replace("\n", "<br>\n") + "</p>")
+    return "\n".join(out)
+
+TOKEN = re.compile(r"\[(/?)(vc_\w+)([^\]]*)\]")
+def attrs(s):
+    return dict(re.findall(r'(\w+)="([^"]*)"', s))
+
+def parse_vc(raw):
+    root = {"tag": "root", "a": {}, "kids": []}
+    stack = [root]; pos = 0
+    for m in TOKEN.finditer(raw):
+        txt = raw[pos:m.start()]
+        if txt.strip(): stack[-1]["kids"].append(txt)
+        pos = m.end()
+        close, tag, at = m.group(1), m.group(2), m.group(3)
+        if close:
+            while len(stack) > 1:
+                n = stack.pop()
+                if n["tag"] == tag: break
+        else:
+            node = {"tag": tag, "a": attrs(at), "kids": []}
+            stack[-1]["kids"].append(node)
+            if tag not in ("vc_single_image", "vc_empty_space", "vc_separator", "vc_video", "vc_btn", "vc_gallery"):
+                stack.append(node)
+    if raw[pos:].strip(): stack[-1]["kids"].append(raw[pos:])
+    return root
+
+FRAC = {"1/2": .5, "1/3": 1/3, "2/3": 2/3, "1/4": .25, "3/4": .75, "1/6": 1/6, "5/6": 5/6}
+def render_vc(node, alt=""):
+    if isinstance(node, str):
+        return autop(fix_links(node))
+    t, a, kids = node["tag"], node["a"], node["kids"]
+    inner = lambda: "".join(render_vc(k, alt) for k in kids)
+    if t in ("root",): return inner()
+    if t in ("vc_row", "vc_row_inner"): 
+        c = inner().strip()
+        return f'<div class="wp-row">{c}</div>' if c else ""
+    if t in ("vc_column", "vc_column_inner"):
+        c = inner().strip()
+        return f'<div class="wp-col" style="--w:{FRAC.get(a.get("width"), 1):.4f}">{c}</div>' if c else ""
+    if t == "vc_column_text": return f'<div class="prose">{inner()}</div>'
+    if t == "vc_single_image":
+        rel = MEDIA_BY_ID.get(int(a.get("image", 0) or 0))
+        return f"<figure>{img(rel, alt)}</figure>" if rel else ""
+    if t == "vc_gallery":
+        return "".join(f"<figure>{img(MEDIA_BY_ID[int(i)], alt)}</figure>" for i in a.get("images", "").split(",") if i.isdigit() and int(i) in MEDIA_BY_ID)
+    if t == "vc_video":
+        return f'<a class="video-link" href="{E(a.get("link",""))}" target="_blank" rel="noopener">▶ Video ansehen</a>'
+    if t == "vc_btn":
+        url = unquote(re.search(r"url:([^|]*)", a.get("link", "url:")).group(1))
+        return f'<a class="btn" href="{E(fix_links(url))}">{E(a.get("title","Mehr"))}</a>'
+    if t == "vc_separator": return "<hr>"
+    if t == "vc_empty_space": return ""
+    return inner()
+
+def text_of(h):
+    t = re.sub(r"\[[^\]]+\]", " ", h); t = re.sub(r"<[^>]+>", " ", t)
+    return re.sub(r"\s+", " ", html.unescape(t)).strip()
+
+# ---------- Projekte ----------
+PJ = json.loads((ROOT / "data/projekte.json").read_text())
+PROJECTS = PJ["projects"]
+PROJECT_SLUG = {"821": "ths-studentenwohnhaus-goettingen"}
+for p in PROJECTS:
+    p["url_slug"] = PROJECT_SLUG.get(p["slug"], p["slug"])
+
+def project_desc(p):
+    lines = [l for l in p["text"][1:] if not re.match(r"^(Bauherr|Architekt|Fertigstellung|Auftraggeber|Fotos|Visualisierung|GU)", l)]
+    d = " ".join(lines) or ", ".join(p["tags"])
+    d = f'{p["title"].title() if p["title"].isupper() else p["title"]}: {d}'
+    return (d[:152] + "…") if len(d) > 155 else d
+
+def build_projects():
+    terms = [t for t in PJ["terms"] if any(t in p["tags"] for p in PROJECTS)]
+    cards = []
+    for p in PROJECTS:
+        cards.append(f'<a class="card" href="/projekte/{p["url_slug"]}/" data-tags="{E("|".join(p["tags"]))}">'
+                     f'<div class="ph">{img(p["thumb"] or p["images"][0], p["title"], "(max-width:600px) 100vw, 33vw")}</div>'
+                     f'<h3>{E(p["title"])}</h3><p>{E(" · ".join(p["tags"]))}</p></a>')
+    filt = '<button type="button" data-tag="" aria-pressed="true">Alle</button>' + "".join(
+        f'<button type="button" data-tag="{E(t)}" aria-pressed="false">{E(t)}</button>' for t in terms)
+    body = f'''<div class="page"><div class="wrap">
+<h1>Projekte</h1>
+<p class="lead">Eine Auswahl unserer realisierten Freianlagen, Spielplätze, Plätze und Gärten – von Hannover bis Hamburg, Bremen, Göttingen und Würzburg.</p>
+<div class="filters" role="group" aria-label="Nach Kategorie filtern">{filt}</div>
+<div class="grid">{"".join(cards)}</div>
+</div></div>'''
+    layout("/projekte/", "Projekte", "Projekte von SPALINK-SIEVERS LandschaftsArchitekten: Freianlagen im Geschosswohnungsbau, Spielplätze, Kitas, Schulhöfe, Stadtplätze und Hausgärten.", body, "/projekte/",
+           og_image=largest(PROJECTS[0]["thumb"]))
+    for i, p in enumerate(PROJECTS):
+        prev, nxt = PROJECTS[i - 1], PROJECTS[(i + 1) % len(PROJECTS)]
+        imgs = [x for x in dict.fromkeys(p["images"])]
+        ptitle = p["title"]
+        gal = "".join('<button type="button" data-full="%s" aria-label="Bild %d vergrößern">%s</button>' % (largest(r), k + 1, img(r, "%s – Bild %d" % (ptitle, k + 1), "(max-width:700px) 100vw, 33vw")) for k, r in enumerate(imgs))
+        lines = p["text"][1:] if p["text"] and N(p["text"][0]).lower().replace("–", "-") == N(p["title"]).lower().replace("–", "-") else p["text"]
+        facts = "".join(f"<p>{E(l)}</p>" for l in lines)
+        tags = "".join(f'<li><a href="/projekte/?kategorie={E(t)}">{E(t)}</a></li>' for t in p["tags"])
+        hero = img(p["thumb"] or imgs[0], p["title"], "(max-width:860px) 100vw, 55vw", eager=True)
+        body = f'''<div class="page"><div class="wrap">
+<div class="project-head"><div>{hero}</div>
+<div><h1>{E(p["title"])}</h1><ul class="tags">{tags}</ul><div class="facts">{facts}</div></div></div>
+<div class="gallery">{gal}</div>
+<nav class="pager" aria-label="Weitere Projekte"><a href="/projekte/{prev["url_slug"]}/">← {E(prev["title"])}</a><a href="/projekte/{nxt["url_slug"]}/">{E(nxt["title"])} →</a></nav>
+</div></div>'''
+        ld = {"@context": "https://schema.org", "@type": "CreativeWork", "name": p["title"], "description": project_desc(p),
+              "creator": {"@type": "Organization", "name": NAME}, "keywords": ", ".join(p["tags"]),
+              "image": [SITE + largest(r) for r in imgs[:4] if largest(r)], "url": f'{SITE}/projekte/{p["url_slug"]}/'}
+        layout(f'/projekte/{p["url_slug"]}/', p["title"], project_desc(p), body, "/projekte/", og_image=largest(p["thumb"] or imgs[0]), jsonld=ld)
+
+# ---------- Aktuell ----------
+def build_aktuell():
+    raw = next(p for p in WP["pages"] if p["slug"] == "aktuell")["content"]["raw"]
+    tree = parse_vc(raw)
+    entries = []
+    for row in tree["kids"]:
+        if isinstance(row, str) or row["tag"] != "vc_row": continue
+        s = json.dumps(row)
+        if not re.search(r"vc_column_text|vc_single_image|vc_video|vc_btn", s): continue
+        texts, images, extra = [], [], []
+        def walk(n):
+            if isinstance(n, str): texts.append(n); return
+            if n["tag"] == "vc_single_image":
+                r = MEDIA_BY_ID.get(int(n["a"].get("image", 0) or 0)); r and images.append(r)
+            elif n["tag"] in ("vc_video", "vc_btn"): extra.append(render_vc(n))
+            for k in n["kids"]: walk(k)
+        walk(row)
+        txt_html = autop(fix_links("\n\n".join(texts)))
+        plain = text_of(txt_html)
+        if not plain and not images: continue
+        first = re.split(r"<br>|</p>|\n", txt_html)[0]
+        title = text_of(first)[:110] or "Neuigkeit"
+        if text_of(first):  # erste Zeile wird Überschrift -> im Text nicht doppelt zeigen
+            txt_html = txt_html.replace(first, "<p>" if first.startswith("<p>") else "", 1)
+            txt_html = re.sub(r"^<p>\s*(<br>\s*)?", "<p>", txt_html).replace("<p></p>", "")
+        entries.append({"title": title, "html": txt_html + "".join(extra), "images": images, "plain": plain})
+    used = set()
+    for e in entries:
+        s = slugify(e["title"])[:60]; k = 2
+        while s in used: s = f"{slugify(e['title'])[:56]}-{k}"; k += 1
+        used.add(s); e["slug"] = s
+    def post(e, h="h2", link=True):
+        im = "".join(img(r, e["title"], "(max-width:760px) 100vw, 30vw") for r in e["images"][:6])
+        head = f'<{h}><a href="/aktuell/{e["slug"]}/">{E(e["title"])}</a></{h}>' if link else f"<{h}>{E(e['title'])}</{h}>"
+        return f'<article class="post"><div>{head}<div class="prose">{e["html"]}</div></div><div class="imgs">{im}</div></article>'
+    top = "".join(post(e) for e in entries[:10])
+    def sq(e):
+        if e["images"]:
+            return f'<a class="sq" href="/aktuell/{e["slug"]}/">{img(e["images"][0], e["title"], "180px")}<span>{E(e["title"][:70])}</span></a>'
+        return f'<a class="sq noimg" href="/aktuell/{e["slug"]}/"><span>{E(e["title"][:90])}</span></a>'
+    older = "".join(sq(e) for e in entries[10:])
+    body = f'''<div class="page"><div class="wrap"><h1>Aktuell</h1>{top}
+<div class="section-head"><h2>Ältere Beiträge</h2></div><div class="squares">{older}</div></div></div>'''
+    layout("/aktuell/", "Aktuell", "Neuigkeiten aus dem Büro SPALINK-SIEVERS LandschaftsArchitekten in Hannover: Eröffnungen, Vorträge, Veröffentlichungen und Exkursionen.", body, "/aktuell/")
+    for i, e in enumerate(entries):
+        d = e["plain"][:150] + ("…" if len(e["plain"]) > 150 else "")
+        body = f'<div class="page"><div class="wrap">{post(e, "h1", False)}<nav class="pager"><a href="/aktuell/">← Alle Beiträge</a></nav></div></div>'
+        layout(f'/aktuell/{e["slug"]}/', e["title"], d or e["title"], body, "/aktuell/", og_image=largest(e["images"][0]) if e["images"] else "")
+    return entries
+
+# ---------- Feste Seiten ----------
+STATIC = {
+ "uber-uns": ("/ueber-uns/", "Über uns", "Das Büro SPALINK-SIEVERS LandschaftsArchitekten in Hannover: seit 1991 Freiraumplanung für Wohnungsbau, Spielplätze, Schulen, Plätze und Gärten.", "/ueber-uns/"),
+ "team": ("/team/", "Team", "Das Team von SPALINK-SIEVERS LandschaftsArchitekten in Hannover – Landschaftsarchitektinnen, Landschaftsarchitekten und Architekt.", "/team/"),
+ "kontakt": ("/kontakt/", "Kontakt", "Kontakt zu SPALINK-SIEVERS LandschaftsArchitekten, Alte Herrenhäuser Str. 28, 30419 Hannover, Telefon 0511 979 259-0.", "/kontakt/"),
+ "johanna-sievers": ("/johanna-sievers/", "Johanna Sievers", "Dipl.-Ing. Johanna Sievers, Landschaftsarchitektin BDLA – Gründerin von SPALINK-SIEVERS LandschaftsArchitekten in Hannover.", "/ueber-uns/"),
+ "wettbewerbe": ("/wettbewerbe/", "Wettbewerbe", "Wettbewerbe und Auszeichnungen von SPALINK-SIEVERS LandschaftsArchitekten.", "/ueber-uns/"),
+ "preisgericht": ("/preisgericht/", "Preisgericht", "Mitwirkung von Johanna Sievers als Fachpreisrichterin in Preisgerichten und Jurys.", "/ueber-uns/"),
+ "veroeffentlichungen": ("/veroeffentlichungen/", "Veröffentlichungen", "Veröffentlichungen von SPALINK-SIEVERS LandschaftsArchitekten zu Freiraumplanung, Wohnumfeld und Klimaanpassung.", "/ueber-uns/"),
+ "impressum": ("/impressum/", "Impressum", "Impressum von SPALINK-SIEVERS LandschaftsArchitekten.", None),
+ "datenschutzerklaerung": ("/datenschutz/", "Datenschutz", "Datenschutzerklärung von SPALINK-SIEVERS LandschaftsArchitekten.", None),
+}
+def build_static():
+    for p in WP["pages"]:
+        if p["slug"] not in STATIC: continue
+        path, title, desc, active = STATIC[p["slug"]]
+        content = render_vc(parse_vc(p["content"]["raw"]), title)
+        extra = ' team' if p["slug"] == "team" else ''
+        body = f'<div class="page"><div class="wrap content{extra}"><h1>{E(title)}</h1>{content}</div></div>'
+        layout(path, title, desc, body, active, jsonld=ORG if p["slug"] in ("kontakt", "uber-uns") else None)
+
+# ---------- Startseite ----------
+HERO = ["2017/01/Slider_Herbst_2026-scaled.jpg", "2017/01/spalink-sievers-herbst-hannover-scaled.jpg",
+        "2017/01/spalink-sievers-herbst-hannover-herrenhausen-scaled.jpg", "2017/06/2-hannover-spalink-sievers-herbst-2022-3-garten-scaled.jpg",
+        "2017/01/pink-hannover-herrenhausen-spalink-sievers-Kopie-1-scaled.jpg", "2017/01/2023-hannover-spalink-sievers-landschaftsarchitekten-aussenanlagen-scaled.jpg"]
+def build_home(entries):
+    slides = "".join(img(r, "Freianlagen von SPALINK-SIEVERS LandschaftsArchitekten in Hannover", "100vw", cls="on" if i == 0 else "", eager=i == 0) for i, r in enumerate(HERO))
+    dots = "".join(f'<button type="button" aria-label="Bild {i+1}" aria-current="{str(i==0).lower()}"></button>' for i in range(len(HERO)))
+    cards = "".join(f'<a class="card" href="/projekte/{p["url_slug"]}/"><div class="ph">{img(p["thumb"] or p["images"][0], p["title"], "(max-width:600px) 100vw, 33vw")}</div><h3>{E(p["title"])}</h3><p>{E(" · ".join(p["tags"]))}</p></a>' for p in PROJECTS[:6])
+    news = "".join(f'<li><a href="/aktuell/{e["slug"]}/">{E(e["title"])}</a></li>' for e in entries[:4])
+    body = f'''<section class="hero" aria-label="Bilder aus unseren Projekten">{slides}<div class="hero-dots">{dots}</div></section>
+<div class="page"><div class="wrap">
+<div class="intro"><h1>Landschafts&shy;architektur in Hannover – seit 1991</h1>
+<div><p class="lead">SPALINK-SIEVERS LandschaftsArchitekten plant Freianlagen, die im Alltag funktionieren: Wohnumfeld und Innenhöfe im Geschosswohnungsbau, Spielplätze, Außenanlagen von Kindergärten und Schulen, Stadtplätze, öffentliche Grünanlagen und private Hausgärten.</p>
+<p><a href="/ueber-uns/">Mehr über das Büro</a> · <a href="/kontakt/">Kontakt</a></p></div></div>
+<div class="section-head"><h2>Aktuelle Projekte</h2><a class="more" href="/projekte/">Alle Projekte →</a></div>
+<div class="grid">{cards}</div>
+<div class="section-head"><h2>Aktuell</h2><a class="more" href="/aktuell/">Alle Beiträge →</a></div>
+<ul>{news}</ul>
+</div></div>'''
+    layout("/", NAME + " Hannover", "Landschaftsarchitekten in Hannover: Freianlagen im Wohnungsbau, Spielplätze, Schulhöfe, Kita-Außenanlagen, Stadtplätze, Parks und Hausgärten. Seit 1991.", body, None,
+           og_image=largest(HERO[0]), jsonld=ORG)
+
+# ---------- Umleitungen, Sitemap, Hosting-Dateien ----------
+def build_meta():
+    redirects = [("/uber-uns/", "/ueber-uns/"), ("/datenschutzerklaerung/", "/datenschutz/"), ("/preise-und-ausstellungen/", "/ueber-uns/"),
+                 ("/spalink-sievers-landschaftsarchitekten/", "/"), ("/projects/821/", f"/projekte/{PROJECT_SLUG['821']}/")]
+    ht = ["# Weiterleitungen alter WordPress-Adressen (IONOS / Apache)", "RewriteEngine On",
+          "RewriteCond %{HTTPS} off", "RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]"]
+    ht += [f"RewriteRule ^{a.strip('/')}/?$ {b} [L,R=301]" for a, b in redirects]
+    ht += ["RewriteRule ^projects/([^/]+)/?$ /projekte/$1/ [L,R=301]",
+           "RewriteRule ^wp-content/uploads/(.*\\.pdf)$ /dokumente/$1 [L,R=301,NC]",
+           "", "ErrorDocument 404 /404.html",
+           "<IfModule mod_expires.c>", " ExpiresActive On", ' ExpiresByType image/webp "access plus 1 year"',
+           ' ExpiresByType font/woff2 "access plus 1 year"', ' ExpiresByType text/css "access plus 1 month"',
+           ' ExpiresByType application/javascript "access plus 1 month"', "</IfModule>",
+           "AddType font/woff2 .woff2", "AddType image/webp .webp"]
+    (OUT / ".htaccess").write_text("\n".join(ht) + "\n")
+    vercel = {"buildCommand": "", "outputDirectory": "public", "framework": None, "cleanUrls": False, "trailingSlash": True,
+              "redirects": [{"source": a, "destination": b, "permanent": True} for a, b in redirects] +
+                           [{"source": "/projects/:slug/", "destination": "/projekte/:slug/", "permanent": True}],
+              "headers": [{"source": "/(.*)", "headers": [{"key": "X-Robots-Tag", "value": "noindex, nofollow"}]}]}
+    (ROOT / "vercel.json").write_text(json.dumps(vercel, indent=2))
+    (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE}/sitemap.xml\n")
+    urls = "".join(f"<url><loc>{SITE}{p}</loc></url>" for p in sorted(set(PAGES)))
+    (OUT / "sitemap.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>')
+    body = '<div class="page"><div class="wrap"><h1>Seite nicht gefunden</h1><p>Diese Seite gibt es nicht (mehr). <a href="/">Zur Startseite</a> · <a href="/projekte/">Projekte</a></p></div></div>'
+    layout("/404.html", "Seite nicht gefunden", "Seite nicht gefunden.", body)
+
+def assets():
+    global ASSET_V
+    dst = OUT / "assets"
+    shutil.copytree(ROOT / "src/assets", dst, dirs_exist_ok=True)
+    h = hashlib.md5((ROOT / "src/assets/style.css").read_bytes() + (ROOT / "src/assets/main.js").read_bytes()).hexdigest()[:8]
+    ASSET_V = h
+    logo = media_path("2017/06/Logo_SPALINK-SIEVERS-LandschaftsArchitekten-300-dpi-Kopie.png")
+    with Image.open(logo) as im:
+        im = im.convert("RGBA"); w = 760
+        im.resize((w, round(im.height * w / im.width)), Image.LANCZOS).save(dst / "logo.png", optimize=True)
+        global LOGO_H; LOGO_H = round(im.height * w / im.width)
+        ic = im.crop((0, 0, im.height, im.height)).resize((64, 64))
+        ic.save(OUT / "favicon.png")
+
+ASSET_V = "1"
+if __name__ == "__main__":
+    OUT.mkdir(exist_ok=True)
+    assets()
+    build_projects()
+    entries = build_aktuell()
+    build_static()
+    build_home(entries)
+    build_meta()
+    print(f"Fertig: {len(PAGES)} Seiten, {len(entries)} Aktuell-Beiträge, {len(PROJECTS)} Projekte")
