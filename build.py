@@ -258,13 +258,37 @@ def project_desc(p):
     d = f'{p["title"].title() if p["title"].isupper() else p["title"]}: {d}'
     return (d[:152] + "…") if len(d) > 155 else d
 
+GROUPS = {
+ "Wohnen & Wohnumfeld": ["Freianlagen im Geschosswohnungsbau", "Wohnumfeldverbesserung", "Mietergärten", "Barrierefreie Wohnungen im EG",
+                         "Freianlagen für studentisches Wohnen", "Nachverdichtung im Bestand", "Energetische Sanierung", "UMGESTALTUNG VON HINTERHÖFEN"],
+ "Spielplätze": ["Familienspielplatz", "Spielplatzsanierung"],
+ "Kitas & Schulen": ["Außenanlagen Kindergärten", "Schulhöfe / Schulgärten"],
+ "Plätze, Parks & Stadtumbau": ["Stadtplatzgestaltung", "Parkanlage", "Grünanlage", "Stadtumbau West", "Masterpläne/ Freiraumkonzept", "Friedhöfe"],
+ "Denkmalschutz": ["Aussenanlagen an denkmalgeschützten Gebäuden"],
+ "Haus- & Privatgärten": ["Hausgarten", "Gartengestaltung"],
+ "Verwaltung & Gewerbe": ["Freianlagen von Verwaltungsgebäuden"],
+}
+GROUP_EXTRA = {"am-bailey-park-1-34-in-hameln": ["Wohnen & Wohnumfeld"],
+               "freianlagen-von-verwaltungs-und-produktionsgebaeuden": ["Verwaltung & Gewerbe"],
+               "alter-gueterbahnhof-goettingen": ["Plätze, Parks & Stadtumbau"]}
+_TAG2GROUP = {t: g for g, ts in GROUPS.items() for t in ts}
+def groups_of(p):
+    gs = {_TAG2GROUP[t] for t in p["tags"] if t in _TAG2GROUP} | set(GROUP_EXTRA.get(p["slug"], []))
+    return [g for g in GROUPS if g in gs]
+def nice_tag(t):
+    return {"UMGESTALTUNG VON HINTERHÖFEN": "Umgestaltung von Hinterhöfen", "Aussenanlagen an denkmalgeschützten Gebäuden": "Außenanlagen an denkmalgeschützten Gebäuden",
+            "Masterpläne/ Freiraumkonzept": "Masterpläne / Freiraumkonzept"}.get(t, t)
+
 def build_projects():
-    terms = [t for t in PJ["terms"] if any(t in p["tags"] for p in PROJECTS)]
+    for p in PROJECTS:
+        p["groups"] = groups_of(p)
+        assert p["groups"], "Projekt ohne Gruppe: " + p["slug"]
+    terms = [g for g in GROUPS if any(g in p["groups"] for p in PROJECTS)]
     cards = []
     for p in PROJECTS:
-        cards.append(f'<a class="card" href="/projekte/{p["url_slug"]}/" data-tags="{E("|".join(p["tags"]))}">'
+        cards.append(f'<a class="card" href="/projekte/{p["url_slug"]}/" data-tags="{E("|".join(p["groups"]))}">'
                      f'<div class="ph">{img(p["thumb"] or p["images"][0], p["title"], "(max-width:600px) 100vw, 33vw")}'
-                     f'<div class="ov"><h3>{E(p["title"])}</h3><p>{E(" · ".join(p["tags"]))}</p><i></i></div></div></a>')
+                     f'<div class="ov"><h3>{E(p["title"])}</h3><p>{E(" · ".join(nice_tag(t) for t in p["tags"]))}</p><i></i></div></div></a>')
     filt = '<button type="button" data-tag="" aria-pressed="true">Alle</button>' + "".join(
         f'<button type="button" data-tag="{E(t)}" aria-pressed="false">{E(t)}</button>' for t in terms)
     body = f'''<div class="page"><div class="wrap">
@@ -282,7 +306,7 @@ def build_projects():
         gal = "".join('<button type="button" data-full="%s" aria-label="Bild %d vergrößern">%s</button>' % (largest(r), k + 1, img(r, "%s – Bild %d" % (ptitle, k + 1), "(max-width:700px) 100vw, 33vw")) for k, r in enumerate(imgs))
         lines = p["text"][1:] if p["text"] and N(p["text"][0]).lower().replace("–", "-") == N(p["title"]).lower().replace("–", "-") else p["text"]
         facts = "".join(f"<p>{E(l)}</p>" for l in lines)
-        tags = "".join(f'<li><a href="/projekte/?kategorie={E(t)}">{E(t)}</a></li>' for t in p["tags"])
+        tags = "".join(f'<li><a href="/projekte/?kategorie={E(_TAG2GROUP.get(t, p["groups"][0]))}">{E(nice_tag(t))}</a></li>' for t in p["tags"])
         hero = img(p["thumb"] or imgs[0], p["title"], "(max-width:860px) 100vw, 55vw", eager=True)
         body = f'''<div class="page"><div class="wrap">
 <div class="project-head"><div>{hero}</div>
@@ -291,7 +315,7 @@ def build_projects():
 <nav class="pager" aria-label="Weitere Projekte"><a href="/projekte/{prev["url_slug"]}/">← {E(prev["title"])}</a><a href="/projekte/{nxt["url_slug"]}/">{E(nxt["title"])} →</a></nav>
 </div></div>'''
         ld = {"@context": "https://schema.org", "@type": "CreativeWork", "name": p["title"], "description": project_desc(p),
-              "creator": {"@type": "Organization", "name": NAME}, "keywords": ", ".join(p["tags"]),
+              "creator": {"@type": "Organization", "name": NAME}, "keywords": ", ".join([nice_tag(t) for t in p["tags"]] + p["groups"]),
               "image": [SITE + largest(r) for r in imgs[:4] if largest(r)], "url": f'{SITE}/projekte/{p["url_slug"]}/'}
         layout(f'/projekte/{p["url_slug"]}/', p["title"], project_desc(p), body, "/projekte/", og_image=largest(p["thumb"] or imgs[0]), jsonld=ld)
 
@@ -456,7 +480,7 @@ HERO = ["2017/01/Slider_Herbst_2026-scaled.jpg", "2017/01/spalink-sievers-herbst
 def build_home(entries):
     slides = "".join(img(r, "Freianlagen von SPALINK-SIEVERS LandschaftsArchitekten in Hannover", "100vw", cls="on" if i == 0 else "", eager=i == 0) for i, r in enumerate(HERO))
     dots = "".join(f'<button type="button" aria-label="Bild {i+1}" aria-current="{str(i==0).lower()}"></button>' for i in range(len(HERO)))
-    cards = "".join(f'<a class="card" href="/projekte/{p["url_slug"]}/"><div class="ph">{img(p["thumb"] or p["images"][0], p["title"], "(max-width:600px) 100vw, 33vw")}<div class="ov"><h3>{E(p["title"])}</h3><p>{E(" · ".join(p["tags"]))}</p><i></i></div></div></a>' for p in PROJECTS[:6])
+    cards = "".join(f'<a class="card" href="/projekte/{p["url_slug"]}/"><div class="ph">{img(p["thumb"] or p["images"][0], p["title"], "(max-width:600px) 100vw, 33vw")}<div class="ov"><h3>{E(p["title"])}</h3><p>{E(" · ".join(nice_tag(t) for t in p["tags"]))}</p><i></i></div></div></a>' for p in PROJECTS[:6])
     news = "".join(f'<li><a href="/aktuell/{e["slug"]}/">{E(e["title"])}</a></li>' for e in entries[:4])
     body = f'''<section class="hero" aria-label="Bilder aus unseren Projekten">{slides}<div class="hero-dots">{dots}</div></section>
 <div class="page"><div class="wrap">
