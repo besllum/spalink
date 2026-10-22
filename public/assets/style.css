@@ -56,6 +56,11 @@ main{min-height:50vh}
 .section-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin:40px 0 18px}
 .more{font-size:.85rem;letter-spacing:.12em;text-transform:uppercase;text-decoration:none}
 
+/* Unternavigation (Presse) */
+.subnav{display:flex;gap:26px;border-bottom:1px solid var(--line);margin:-6px 0 28px}
+.subnav a{padding:8px 0;color:#666;text-decoration:none;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;border-bottom:2px solid transparent;margin-bottom:-1px}
+.subnav a:hover,.subnav a[aria-current=page]{color:var(--ink);border-color:var(--green)}
+
 /* Projektraster */
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 28px}
 .filters button{font:inherit;font-size:.82rem;border:1px solid var(--line);background:#fff;color:#444;padding:6px 12px;border-radius:999px;cursor:pointer}

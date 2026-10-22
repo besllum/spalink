@@ -79,7 +79,12 @@ def largest(rel):
 
 # ---------- Seitenrahmen ----------
 NAV = [("Aktuell", "/aktuell/"), ("Über uns", "/ueber-uns/"), ("Projekte", "/projekte/"),
-       ("Team", "/team/"), ("Kontakt", "/kontakt/")]
+       ("Presse", "/presse/"), ("Team", "/team/"), ("Kontakt", "/kontakt/")]
+
+def subnav_presse(current):
+    items = [("Presseberichte", "/presse/"), ("Veröffentlichungen", "/veroeffentlichungen/")]
+    return '<nav class="subnav" aria-label="Presse">' + "".join(
+        f'<a href="{u}"{" aria-current=page" if u == current else ""}>{n}</a>' for n, u in items) + "</nav>"
 
 def layout(path, title, desc, body, active=None, og_image="", jsonld=None):
     full_title = title if ("SPALINK" in title and "SIEVERS" in title) else f"{title} | {NAME}"
@@ -397,15 +402,15 @@ def build_aktuell():
 {"".join(post(e) for e in news[:10])}
 <div class="section-head"><h2>Ältere Beiträge</h2></div>{by_year(news[10:])}</div></div>'''
     layout("/aktuell/", "Aktuell", "Neuigkeiten aus dem Büro SPALINK-SIEVERS LandschaftsArchitekten in Hannover: Eröffnungen, Vorträge, Exkursionen und Termine.", body, "/aktuell/")
-    body = f'''<div class="page"><div class="wrap"><h1>Presse</h1>
+    body = f'''<div class="page"><div class="wrap"><h1>Presse</h1>{subnav_presse("/presse/")}
 <p class="lead">Berichte über unsere Projekte in Zeitungen, Fachzeitschriften und Mitgliedermagazinen. Eigene Fachbeiträge finden Sie unter <a href="/veroeffentlichungen/">Veröffentlichungen</a>.</p>
 {by_year(press)}</div></div>'''
-    layout("/presse/", "Presse", "Presseberichte über Projekte von SPALINK-SIEVERS LandschaftsArchitekten in Zeitungen, Fachzeitschriften und Magazinen.", body, "/aktuell/")
+    layout("/presse/", "Presse", "Presseberichte über Projekte von SPALINK-SIEVERS LandschaftsArchitekten in Zeitungen, Fachzeitschriften und Magazinen.", body, "/presse/")
     for e in entries:
         d = e["plain"][:150] + ("…" if len(e["plain"]) > 150 else "")
         back = '<a href="/presse/">← Alle Presseberichte</a>' if e["press"] else '<a href="/aktuell/">← Alle Beiträge</a>'
         body = f'<div class="page"><div class="wrap">{post(e, "h1", False)}<nav class="pager">{back}</nav></div></div>'
-        layout(f'/{e["section"]}/{e["slug"]}/', e["title"], d or e["title"], body, "/aktuell/", og_image=largest(e["images"][0]) if e["images"] else "")
+        layout(f'/{e["section"]}/{e["slug"]}/', e["title"], d or e["title"], body, "/presse/" if e["press"] else "/aktuell/", og_image=largest(e["images"][0]) if e["images"] else "")
     return news
 
 
@@ -417,7 +422,7 @@ STATIC = {
  "johanna-sievers": ("/johanna-sievers/", "Johanna Sievers", "Dipl.-Ing. Johanna Sievers, Landschaftsarchitektin BDLA – Gründerin von SPALINK-SIEVERS LandschaftsArchitekten in Hannover.", "/ueber-uns/"),
  "wettbewerbe": ("/wettbewerbe/", "Wettbewerbe", "Wettbewerbe und Auszeichnungen von SPALINK-SIEVERS LandschaftsArchitekten.", "/ueber-uns/"),
  "preisgericht": ("/preisgericht/", "Preisgericht", "Mitwirkung von Johanna Sievers als Fachpreisrichterin in Preisgerichten und Jurys.", "/ueber-uns/"),
- "veroeffentlichungen": ("/veroeffentlichungen/", "Veröffentlichungen", "Veröffentlichungen von SPALINK-SIEVERS LandschaftsArchitekten zu Freiraumplanung, Wohnumfeld und Klimaanpassung.", "/ueber-uns/"),
+ "veroeffentlichungen": ("/veroeffentlichungen/", "Veröffentlichungen", "Veröffentlichungen von SPALINK-SIEVERS LandschaftsArchitekten zu Freiraumplanung, Wohnumfeld und Klimaanpassung.", "/presse/"),
  "impressum": ("/impressum/", "Impressum", "Impressum von SPALINK-SIEVERS LandschaftsArchitekten.", None),
  "datenschutzerklaerung": ("/datenschutz/", "Datenschutz", "Datenschutzerklärung von SPALINK-SIEVERS LandschaftsArchitekten.", None),
 }
@@ -439,7 +444,9 @@ def build_static():
         if p["slug"] == "datenschutzerklaerung":
             content += LEGAL_EXTRA
         extra = ' team' if p["slug"] == "team" else ''
-        body = f'<div class="page"><div class="wrap content{extra}"><h1>{E(title)}</h1>{content}</div></div>'
+        h1 = "Presse" if p["slug"] == "veroeffentlichungen" else title
+        sub = subnav_presse("/veroeffentlichungen/") if p["slug"] == "veroeffentlichungen" else ""
+        body = f'<div class="page"><div class="wrap content{extra}"><h1>{E(h1)}</h1>{sub}{content}</div></div>'
         layout(path, title, desc, body, active, jsonld=ORG if p["slug"] in ("kontakt", "uber-uns") else None)
 
 # ---------- Startseite ----------
