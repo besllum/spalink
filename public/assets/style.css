@@ -168,3 +168,7 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 .map-load{font:inherit;font-size:.82rem;letter-spacing:.12em;text-transform:uppercase;background:var(--green-dark);color:#fff;border:0;padding:10px 22px;cursor:pointer}
 .map-load:hover{background:var(--green)}
 .map-note{font-size:.75rem;color:var(--muted)}
+
+/* Text bündig mit Bildern: kein Abstand über dem ersten Absatz einer Spalte */
+.wp-col > .prose > :first-child,.wp-col > :first-child,.prose > :first-child{margin-top:0}
+.wp-col p:first-child{margin-top:0}
