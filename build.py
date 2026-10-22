@@ -469,7 +469,7 @@ def build_static():
             content = content.replace("§ 5 Telemediengesetz (TMG)", "§ 5 Digitale-Dienste-Gesetz (DDG)")
         if p["slug"] == "datenschutzerklaerung":
             content += LEGAL_EXTRA
-        extra = ' team' if p["slug"] == "team" else ''
+        extra = {'team': ' team', 'kontakt': ' kontakt'}.get(p["slug"], '')
         h1 = "Presse" if p["slug"] == "veroeffentlichungen" else title
         sub = subnav_presse("/veroeffentlichungen/") if p["slug"] == "veroeffentlichungen" else ""
         body = f'<div class="page"><div class="wrap content{extra}"><h1>{E(h1)}</h1>{sub}{content}</div></div>'

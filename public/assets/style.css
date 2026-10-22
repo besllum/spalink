@@ -151,3 +151,9 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 .copy{flex-basis:100%;font-size:.8rem;color:rgba(255,255,255,.75);border-top:1px solid rgba(255,255,255,.25);padding-top:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* Kontakt: Adresse kompakt */
+.kontakt .prose p{margin:0 0 .2em}
+.kontakt h4{margin:0 0 .4em}
+.kontakt h4+br{display:none}
+.kontakt .prose p:last-child{margin-top:1.2em}
