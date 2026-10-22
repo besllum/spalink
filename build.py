@@ -515,9 +515,14 @@ def build_static():
         layout(path, title, desc, body, active, jsonld=ORG if p["slug"] in ("kontakt", "uber-uns") else None)
 
 # ---------- Startseite ----------
-HERO = ["2017/01/Slider_Herbst_2026-scaled.jpg", "2017/01/spalink-sievers-herbst-hannover-scaled.jpg",
-        "2017/01/spalink-sievers-herbst-hannover-herrenhausen-scaled.jpg", "2017/06/2-hannover-spalink-sievers-herbst-2022-3-garten-scaled.jpg",
-        "2017/01/pink-hannover-herrenhausen-spalink-sievers-Kopie-1-scaled.jpg", "2017/01/2023-hannover-spalink-sievers-landschaftsarchitekten-aussenanlagen-scaled.jpg"]
+HERO = [  # Reihenfolge wie die Jahreszeiten, beginnend mit dem Herbst
+    "2017/01/spalink-sievers-herbst-hannover-herrenhausen-scaled.jpg",        # Herbst (Laub orange)
+    "2017/01/pink-hannover-herrenhausen-spalink-sievers-Kopie-1-scaled.jpg",  # Winter (Raureif)
+    "2017/01/spalink-sievers-herbst-hannover-scaled.jpg",                     # Vorfrühling (kahle Bäume)
+    "2017/01/2023-hannover-spalink-sievers-landschaftsarchitekten-aussenanlagen-scaled.jpg",  # Frühling (frisches Grün)
+    "2017/06/2-hannover-spalink-sievers-herbst-2022-3-garten-scaled.jpg",     # Sommer
+    "2017/01/Slider_Herbst_2026-scaled.jpg",                                  # Spätsommer / Frühherbst
+]
 def build_home(entries):
     slides = "".join(img(r, "Freianlagen von SPALINK-SIEVERS LandschaftsArchitekten in Hannover", "100vw", cls="on" if i == 0 else "", eager=i == 0) for i, r in enumerate(HERO))
     dots = "".join(f'<button type="button" aria-label="Bild {i+1}" aria-current="{str(i==0).lower()}"></button>' for i in range(len(HERO)))
