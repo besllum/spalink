@@ -403,7 +403,7 @@ def build_aktuell():
 <div class="section-head"><h2>Ältere Beiträge</h2></div>{by_year(news[10:])}</div></div>'''
     layout("/aktuell/", "Aktuell", "Neuigkeiten aus dem Büro SPALINK-SIEVERS LandschaftsArchitekten in Hannover: Eröffnungen, Vorträge, Exkursionen und Termine.", body, "/aktuell/")
     body = f'''<div class="page"><div class="wrap"><h1>Presse</h1>{subnav_presse("/presse/")}
-<p class="lead">Berichte über unsere Projekte in Zeitungen, Fachzeitschriften und Mitgliedermagazinen. Eigene Fachbeiträge finden Sie unter <a href="/veroeffentlichungen/">Veröffentlichungen</a>.</p>
+<p class="lead">Berichte über unsere Projekte in Zeitungen, Fachzeitschriften und Mitgliedermagazinen.<br>Eigene Fachbeiträge finden Sie unter <a href="/veroeffentlichungen/">Veröffentlichungen</a>.</p>
 {by_year(press)}</div></div>'''
     layout("/presse/", "Presse", "Presseberichte über Projekte von SPALINK-SIEVERS LandschaftsArchitekten in Zeitungen, Fachzeitschriften und Magazinen.", body, "/presse/")
     for e in entries:
