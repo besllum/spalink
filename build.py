@@ -436,11 +436,15 @@ def build_aktuell():
         return "".join(out)
 
     news = [e for e in entries if not e["press"]]
+    # Oben groß: alle Beiträge des aktuellen Jahres (gibt es noch keine, die des neuesten Jahres)
+    top_year = YEAR if any(e["year"] == YEAR for e in news) else max((e["year"] or 0) for e in news)
+    top = [e for e in news if e["year"] == top_year]
+    rest = [e for e in news if e["year"] != top_year]
     press = [e for e in entries if e["press"]]
     body = f'''<div class="page"><div class="wrap"><h1>Aktuell</h1>
 <p class="lead">Neuigkeiten aus dem Büro – Eröffnungen, Vorträge, Exkursionen. Presseberichte über unsere Projekte finden Sie unter <a href="/presse/">Presse</a>.</p>
-{"".join(post(e) for e in news[:10])}
-<div class="section-head"><h2>Ältere Beiträge</h2></div>{by_year(news[10:])}</div></div>'''
+{"".join(post(e) for e in top)}
+<div class="section-head"><h2>Ältere Beiträge</h2></div>{by_year(rest)}</div></div>'''
     layout("/aktuell/", "Aktuell", "Neuigkeiten aus dem Büro SPALINK-SIEVERS LandschaftsArchitekten in Hannover: Eröffnungen, Vorträge, Exkursionen und Termine.", body, "/aktuell/")
     body = f'''<div class="page"><div class="wrap"><h1>Presse</h1>{subnav_presse("/presse/")}
 <p class="lead">Berichte über unsere Projekte in Zeitungen, Fachzeitschriften und Mitgliedermagazinen.<br>Eigene Fachbeiträge finden Sie unter <a href="/veroeffentlichungen/">Veröffentlichungen</a>.</p>
