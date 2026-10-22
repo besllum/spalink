@@ -82,7 +82,7 @@ NAV = [("Aktuell", "/aktuell/"), ("Über uns", "/ueber-uns/"), ("Projekte", "/pr
        ("Team", "/team/"), ("Kontakt", "/kontakt/")]
 
 def layout(path, title, desc, body, active=None, og_image="", jsonld=None):
-    full_title = title if NAME in title else f"{title} | {NAME}"
+    full_title = title if ("SPALINK" in title and "SIEVERS" in title) else f"{title} | {NAME}"
     nav = "".join(f'<li><a href="{u}"{" aria-current=page" if u == active else ""}>{E(n)}</a></li>' for n, u in NAV)
     ld = f'<script type="application/ld+json">{json.dumps(jsonld, ensure_ascii=False)}</script>' if jsonld else ""
     og = f'<meta property="og:image" content="{SITE}{og_image}">' if og_image else ""
@@ -94,12 +94,12 @@ def layout(path, title, desc, body, active=None, og_image="", jsonld=None):
 <title>{E(full_title)}</title>
 <meta name="description" content="{E(desc)}">
 <link rel="canonical" href="{SITE}{path}">
-<meta property="og:type" content="website"><meta property="og:locale" content="de_DE">
+<meta property="og:type" content="website"><meta property="og:locale" content="de_DE"><meta property="og:site_name" content="{NAME}">
 <meta property="og:title" content="{E(full_title)}"><meta property="og:description" content="{E(desc)}">
 <meta property="og:url" content="{SITE}{path}">{og}
 <link rel="preload" href="/assets/fonts/open-sans-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/style.css?v={ASSET_V}">
-<link rel="icon" href="/favicon.png">
+<link rel="icon" href="/favicon.png" sizes="32x32"><link rel="icon" href="/icon-192.png" sizes="192x192"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 {ld}
 </head>
 <body>
@@ -461,8 +461,10 @@ def build_home(entries):
 <div class="section-head"><h2>Aktuell</h2><a class="more" href="/aktuell/">Alle Beiträge →</a></div>
 <ul>{news}</ul>
 </div></div>'''
-    layout("/", NAME + " Hannover", "Landschaftsarchitekten in Hannover: Freianlagen im Wohnungsbau, Spielplätze, Schulhöfe, Kita-Außenanlagen, Stadtplätze, Parks und Hausgärten. Seit 1991.", body, None,
-           og_image=largest(HERO[0]), jsonld=ORG)
+    layout("/", "SPALINK- SIEVERS LandschaftsArchitekten Hannover",
+           "Auftragsspektrum: u.a. private Hausgärten, Stadtplätze, Spielplätze, Schulhöfe, Außenanlagen von Kindergärten, Verwaltungsgebäuden, öffentlichen Grünanlagen, Parks.",
+           body, None, og_image=largest(HERO[0]),
+           jsonld=[ORG, {"@context": "https://schema.org", "@type": "WebSite", "name": NAME, "url": SITE + "/"}])
 
 # ---------- Umleitungen, Sitemap, Hosting-Dateien ----------
 def build_meta():
@@ -501,8 +503,12 @@ def assets():
         im = im.convert("RGBA"); w = 760
         im.resize((w, round(im.height * w / im.width)), Image.LANCZOS).save(dst / "logo.png", optimize=True)
         global LOGO_H; LOGO_H = round(im.height * w / im.width)
-        ic = im.crop((0, 0, im.height, im.height)).resize((64, 64))
-        ic.save(OUT / "favicon.png")
+    icon = media_path("2017/06/cropped-icon.png")
+    if icon:  # bisheriges Website-Symbol (wie in der Google-Suche) weiterverwenden
+        with Image.open(icon) as ic:
+            ic = ic.convert("RGBA")
+            for name, size in (("favicon.png", 32), ("icon-192.png", 192), ("apple-touch-icon.png", 180)):
+                ic.resize((size, size), Image.LANCZOS).save(OUT / name)
 
 ASSET_V = "1"
 import datetime
