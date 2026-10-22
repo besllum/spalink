@@ -172,3 +172,7 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 /* Text bündig mit Bildern: kein Abstand über dem ersten Absatz einer Spalte */
 .wp-col > .prose > :first-child,.wp-col > :first-child,.prose > :first-child{margin-top:0}
 .wp-col p:first-child{margin-top:0}
+
+/* Startseite: Überschrift und Einleitung oben auf gleicher Höhe */
+.intro h1,.intro .lead{margin-top:0}
+.intro h1{line-height:1.3;padding-top:.1em}
