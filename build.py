@@ -87,7 +87,12 @@ def subnav_presse(current):
         f'<a href="{u}"{" aria-current=page" if u == current else ""}>{n}</a>' for n, u in items) + "</nav>"
 
 def layout(path, title, desc, body, active=None, og_image="", jsonld=None):
-    full_title = title if ("SPALINK" in title and "SIEVERS" in title) else f"{title} | {NAME}"
+    full_title = title if ("SPALINK" in title and "SIEVERS" in title) else f"{title} | SPALINK-SIEVERS"
+    if len(desc) < 70:  # zu kurze Beschreibungen ergänzen
+        desc = (desc.rstrip(" .") + ". " if desc else "") + "SPALINK-SIEVERS LandschaftsArchitekten, Hannover – Freiraumplanung seit 1991."
+    if len(desc) > 160:
+        desc = desc[:157].rsplit(" ", 1)[0] + " …"
+    body = re.sub(r'(<img [^>]*?)alt=""', lambda m: m.group(1) + f'alt="{E(title)}"', body)  # fehlende Alt-Texte
     nav = "".join(f'<li><a href="{u}"{" aria-current=page" if u == active else ""}>{E(n)}</a></li>' for n, u in NAV)
     ld = f'<script type="application/ld+json">{json.dumps(jsonld, ensure_ascii=False)}</script>' if jsonld else ""
     og = f'<meta property="og:image" content="{SITE}{og_image}">' if og_image else ""
@@ -319,7 +324,7 @@ def build_projects():
         prev, nxt = PROJECTS[i - 1], PROJECTS[(i + 1) % len(PROJECTS)]
         imgs = [x for x in dict.fromkeys(p["images"])]
         ptitle = p["title"]
-        gal = "".join('<button type="button" data-full="%s" aria-label="Bild %d vergrößern">%s</button>' % (largest(r), k + 1, img(r, "%s – Bild %d" % (ptitle, k + 1), "(max-width:700px) 100vw, 33vw")) for k, r in enumerate(imgs))
+        gal = "".join('<button type="button" data-full="%s" aria-label="Bild %d vergrößern">%s</button>' % (largest(r), k + 1, img(r, "%s – %s, Foto %d" % (ptitle, nice_tag(p["tags"][0]) if p["tags"] else "Freianlage", k + 1), "(max-width:700px) 100vw, 33vw")) for k, r in enumerate(imgs))
         lines = p["text"][1:] if p["text"] and N(p["text"][0]).lower().replace("–", "-") == N(p["title"]).lower().replace("–", "-") else p["text"]
         facts = "".join(f"<p>{E(l)}</p>" for l in lines)
         tags = "".join(f'<li><a href="/projekte/?kategorie={E(_TAG2GROUP.get(t, p["groups"][0]))}">{E(nice_tag(t))}</a></li>' for t in p["tags"])
@@ -404,6 +409,17 @@ def build_aktuell():
     for e in entries:
         if not e["title"]:
             e["title"] = f'Bildbeitrag {e["year"]}' if e["year"] else "Bildbeitrag"
+    cnt = {}
+    for e in entries: cnt[e["title"]] = cnt.get(e["title"], 0) + 1
+    for e in entries:
+        if cnt[e["title"]] > 1 and not e["title"].startswith("Bildbeitrag"):
+            e["title"] = f'{e["title"]} {e["date"] or e["year"] or ""}'.strip()
+    seen = {}
+    for e in entries:
+        if e["title"] in seen:
+            seen[e["title"]] += 1; e["title"] = f'{e["title"]} ({seen[e["title"]]})'
+        else:
+            seen[e["title"]] = 1
     used = set()
     for e in entries:
         base = slugify(e["title"])[:60]
@@ -452,6 +468,7 @@ def build_aktuell():
     layout("/presse/", "Presse", "Presseberichte über Projekte von SPALINK-SIEVERS LandschaftsArchitekten in Zeitungen, Fachzeitschriften und Magazinen.", body, "/presse/")
     for e in entries:
         d = e["plain"][:150] + ("…" if len(e["plain"]) > 150 else "")
+        if len(d) < 60: d = f'{e["title"]}{": " + d if d else ""}'  # kurze Texte mit Titel eindeutig machen
         back = '<a href="/presse/">← Alle Presseberichte</a>' if e["press"] else '<a href="/aktuell/">← Alle Beiträge</a>'
         body = f'<div class="page"><div class="wrap">{post(e, "h1", False)}<nav class="pager">{back}</nav></div></div>'
         layout(f'/{e["section"]}/{e["slug"]}/', e["title"], d or e["title"], body, "/presse/" if e["press"] else "/aktuell/", og_image=largest(e["images"][0]) if e["images"] else "")
@@ -542,7 +559,8 @@ def build_meta():
               "headers": [{"source": "/(.*)", "headers": [{"key": "X-Robots-Tag", "value": "noindex, nofollow"}]}]}
     (ROOT / "vercel.json").write_text(json.dumps(vercel, indent=2))
     (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE}/sitemap.xml\n")
-    urls = "".join(f"<url><loc>{SITE}{p}</loc></url>" for p in sorted(set(PAGES)))
+    today = datetime.date.today().isoformat()
+    urls = "".join(f"<url><loc>{SITE}{p}</loc><lastmod>{today}</lastmod></url>" for p in sorted(set(PAGES)) if p != "/404.html")
     (OUT / "sitemap.xml").write_text(f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>')
     body = '<div class="page"><div class="wrap"><h1>Seite nicht gefunden</h1><p>Diese Seite gibt es nicht (mehr). <a href="/">Zur Startseite</a> · <a href="/projekte/">Projekte</a></p></div></div>'
     layout("/404.html", "Seite nicht gefunden", "Seite nicht gefunden.", body)
