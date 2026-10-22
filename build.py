@@ -515,13 +515,13 @@ def build_static():
         layout(path, title, desc, body, active, jsonld=ORG if p["slug"] in ("kontakt", "uber-uns") else None)
 
 # ---------- Startseite ----------
-HERO = [  # Reihenfolge wie die Jahreszeiten, beginnend mit dem Herbst
+HERO = [  # Start mit Bild 1 (Frühherbst), danach Reihenfolge der Jahreszeiten
+    "2017/01/Slider_Herbst_2026-scaled.jpg",                                  # Frühherbst (erste gelbe Blätter)
     "2017/01/spalink-sievers-herbst-hannover-herrenhausen-scaled.jpg",        # Herbst (Laub orange)
     "2017/01/pink-hannover-herrenhausen-spalink-sievers-Kopie-1-scaled.jpg",  # Winter (Raureif)
     "2017/01/spalink-sievers-herbst-hannover-scaled.jpg",                     # Vorfrühling (kahle Bäume)
-    "2017/01/2023-hannover-spalink-sievers-landschaftsarchitekten-aussenanlagen-scaled.jpg",  # Frühling (frisches Grün)
+    "2017/01/2023-hannover-spalink-sievers-landschaftsarchitekten-aussenanlagen-scaled.jpg",  # Frühling
     "2017/06/2-hannover-spalink-sievers-herbst-2022-3-garten-scaled.jpg",     # Sommer
-    "2017/01/Slider_Herbst_2026-scaled.jpg",                                  # Spätsommer / Frühherbst
 ]
 def build_home(entries):
     slides = "".join(img(r, "Freianlagen von SPALINK-SIEVERS LandschaftsArchitekten in Hannover", "100vw", cls="on" if i == 0 else "", eager=i == 0) for i, r in enumerate(HERO))
