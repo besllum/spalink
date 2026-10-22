@@ -116,8 +116,14 @@ def layout(path, title, desc, body, active=None, og_image="", jsonld=None):
 </main>
 <footer class="site-footer">
  <div class="wrap">
-  <div>{NAME}<br>Alte Herrenhäuser Str. 28 · 30419 Hannover<br>Telefon <a href="tel:+495119792590">0511 979 259-0</a> · <a href="mailto:info@spalink-sievers.de">info@spalink-sievers.de</a></div>
-  <nav aria-label="Rechtliches"><a href="/impressum/">Impressum</a><a href="/datenschutz/">Datenschutz</a></nav>
+  <div><strong>{NAME}</strong><br>Alte Herrenhäuser Str. 28 · 30419 Hannover<br>Telefon <a href="tel:+495119792590">0511 979 259-0</a> · <a href="mailto:info@spalink-sievers.de">info@spalink-sievers.de</a></div>
+  <nav class="legal" aria-label="Rechtliches"><ul>
+   <li><a href="/impressum/">Impressum</a></li>
+   <li><a href="/datenschutz/">Datenschutzerklärung</a></li>
+   <li><a href="/datenschutz/#cookies">Cookies</a></li>
+   <li><a href="/datenschutz/#hosting">Hosting</a></li>
+  </ul></nav>
+  <p class="copy">© {YEAR} {NAME} · Diese Website verwendet keine Cookies und kein Tracking.</p>
  </div>
 </footer>
 <script src="/assets/main.js?v={ASSET_V}" defer></script>
@@ -346,11 +352,23 @@ STATIC = {
  "impressum": ("/impressum/", "Impressum", "Impressum von SPALINK-SIEVERS LandschaftsArchitekten.", None),
  "datenschutzerklaerung": ("/datenschutz/", "Datenschutz", "Datenschutzerklärung von SPALINK-SIEVERS LandschaftsArchitekten.", None),
 }
+LEGAL_EXTRA = """
+<h2 id="hosting">Hosting</h2>
+<div class="prose"><p>Diese Website wird bei der IONOS SE, Elgendorfer Str. 57, 56410 Montabaur, Deutschland, gehostet. Beim Aufruf der Website verarbeitet der Hoster die oben unter „Beim Besuch der Website“ genannten Zugriffsdaten (Server-Logfiles) in unserem Auftrag. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; unser berechtigtes Interesse liegt in der sicheren und zuverlässigen Bereitstellung der Website. Mit dem Hoster besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO.</p></div>
+<h2 id="cookies">Cookies</h2>
+<div class="prose"><p>Diese Website setzt keine Cookies und verwendet keine Analyse- oder Tracking-Dienste. Schriften werden von unserem eigenen Server geladen; es werden keine Inhalte von Drittanbietern (z. B. Google Fonts, eingebettete Videos oder Karten) beim Seitenaufruf nachgeladen. Ein Cookie-Banner ist daher nicht erforderlich.</p></div>
+<h2 id="externe-links">Links zu anderen Websites</h2>
+<div class="prose"><p>Einige Seiten enthalten Links zu externen Angeboten (z. B. Instagram oder YouTube). Erst wenn Sie einen solchen Link anklicken, verlassen Sie unsere Website; für die Datenverarbeitung auf diesen Seiten ist der jeweilige Anbieter verantwortlich.</p></div>
+"""
 def build_static():
     for p in WP["pages"]:
         if p["slug"] not in STATIC: continue
         path, title, desc, active = STATIC[p["slug"]]
         content = render_vc(parse_vc(p["content"]["raw"]), title)
+        if p["slug"] == "impressum":
+            content = content.replace("§ 5 Telemediengesetz (TMG)", "§ 5 Digitale-Dienste-Gesetz (DDG)")
+        if p["slug"] == "datenschutzerklaerung":
+            content += LEGAL_EXTRA
         extra = ' team' if p["slug"] == "team" else ''
         body = f'<div class="page"><div class="wrap content{extra}"><h1>{E(title)}</h1>{content}</div></div>'
         layout(path, title, desc, body, active, jsonld=ORG if p["slug"] in ("kontakt", "uber-uns") else None)
@@ -418,6 +436,8 @@ def assets():
         ic.save(OUT / "favicon.png")
 
 ASSET_V = "1"
+import datetime
+YEAR = datetime.date.today().year
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
     assets()

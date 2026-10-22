@@ -113,8 +113,11 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 .team .wp-col p{margin:.2em 0}
 
 /* Fuß */
-.site-footer{margin-top:56px;background:var(--green-soft);font-size:.9rem}
-.site-footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;padding-top:28px;padding-bottom:28px}
-.site-footer a{color:var(--ink)}
-.site-footer nav a{margin-left:18px}
+.site-footer{margin-top:56px;background:var(--green-dark);color:#fff;font-size:.9rem}
+.site-footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:20px;padding-top:32px;padding-bottom:32px}
+.site-footer a{color:#fff;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.5)}
+.site-footer a:hover{text-decoration-color:#fff;color:#fff}
+.site-footer strong{font-weight:600;letter-spacing:.04em}
+.legal ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 22px}
+.copy{flex-basis:100%;font-size:.8rem;color:rgba(255,255,255,.75);border-top:1px solid rgba(255,255,255,.25);padding-top:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
