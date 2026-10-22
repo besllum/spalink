@@ -258,8 +258,8 @@ def build_projects():
     cards = []
     for p in PROJECTS:
         cards.append(f'<a class="card" href="/projekte/{p["url_slug"]}/" data-tags="{E("|".join(p["tags"]))}">'
-                     f'<div class="ph">{img(p["thumb"] or p["images"][0], p["title"], "(max-width:600px) 100vw, 33vw")}</div>'
-                     f'<h3>{E(p["title"])}</h3><p>{E(" · ".join(p["tags"]))}</p></a>')
+                     f'<div class="ph">{img(p["thumb"] or p["images"][0], p["title"], "(max-width:600px) 100vw, 33vw")}'
+                     f'<div class="ov"><h3>{E(p["title"])}</h3><p>{E(" · ".join(p["tags"]))}</p><i></i></div></div></a>')
     filt = '<button type="button" data-tag="" aria-pressed="true">Alle</button>' + "".join(
         f'<button type="button" data-tag="{E(t)}" aria-pressed="false">{E(t)}</button>' for t in terms)
     body = f'''<div class="page"><div class="wrap">
@@ -290,7 +290,23 @@ def build_projects():
               "image": [SITE + largest(r) for r in imgs[:4] if largest(r)], "url": f'{SITE}/projekte/{p["url_slug"]}/'}
         layout(f'/projekte/{p["url_slug"]}/', p["title"], project_desc(p), body, "/projekte/", og_image=largest(p["thumb"] or imgs[0]), jsonld=ld)
 
-# ---------- Aktuell ----------
+# ---------- Aktuell & Presse ----------
+PRESS_RE = re.compile(r"(Erschienen|Zeitung|[Mm]agazin|Heft|\bH\.\s?\d|Ausgabe|Architektenblatt|DAB regional|STADT und RAUM|Weser-?[Kk]urier|\bHAZ\b|Tageblatt|regionalSalzgitter|Wohnungswirtschaft|Mieterzeitung|Stadtanzeiger|DIE HARKE)")
+DATE_RE = re.compile(r"^[\s\d./\-–,]*(\d{1,2}\.?\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)?\s*)?(19|20)?\d{2,4}[\s.:]*$", re.I)
+YEAR_RE = re.compile(r"\b(20[0-3]\d|199\d)\b")
+JUNK = {"spalink","sievers","johanna","johannah","landschaftsarchitekten","landschaftsarchitektur","hannover","scaled","kopie","copia","img","jpg","jpeg","png","web","final"}
+
+def title_from_image(rel):
+    stem = Path(rel).stem
+    words = [w for w in re.split(r"[-_ ]+", stem) if w and not w.isdigit() and w.lower() not in JUNK and not re.match(r"^\d+x\d+$|^[a-z]?\d+[a-z]?$", w, re.I)]
+    t = re.sub(r"^\d+", "", " ".join(words)).strip()
+    if re.match(r"(?i)^(seiten aus|dwbn|bildschirmfoto|screenshot|dsc|whatsapp)", t): return ""
+    return t[:1].upper() + t[1:] if len(t) >= 6 else ""
+
+def short(t, n):
+    if len(t) <= n: return t
+    return t[:n].rsplit(" ", 1)[0].rstrip(" ,.:;–-") + " …"
+
 def build_aktuell():
     raw = next(p for p in WP["pages"] if p["slug"] == "aktuell")["content"]["raw"]
     tree = parse_vc(raw)
@@ -308,37 +324,90 @@ def build_aktuell():
             for k in n["kids"]: walk(k)
         walk(row)
         txt_html = autop(fix_links("\n\n".join(texts)))
-        plain = text_of(txt_html)
-        if not plain and not images: continue
-        first = re.split(r"<br>|</p>|\n", txt_html)[0]
-        title = text_of(first)[:110] or "Neuigkeit"
-        if text_of(first):  # erste Zeile wird Überschrift -> im Text nicht doppelt zeigen
-            txt_html = txt_html.replace(first, "<p>" if first.startswith("<p>") else "", 1)
-            txt_html = re.sub(r"^<p>\s*(<br>\s*)?", "<p>", txt_html).replace("<p></p>", "")
-        entries.append({"title": title, "html": txt_html + "".join(extra), "images": images, "plain": plain})
+        if not text_of(txt_html) and not images: continue
+        # Zeilen bestimmen
+        lines = [text_of(x) for x in re.split(r"<br>|</p>|\n", txt_html)]
+        lines = [l for l in lines if l]
+        date = ""
+        title = ""
+        consumed = 0
+        if lines and DATE_RE.match(lines[0]) and len(lines[0]) < 30:
+            date = lines[0].strip(" :"); consumed = 1
+        if len(lines) > consumed:
+            title = lines[consumed][:110]; consumed += 1
+        if not title:
+            title = next((t for t in (title_from_image(r) for r in images) if t), "")
+        # die als Titel/Datum genutzten Zeilen nicht doppelt im Text zeigen
+        body = txt_html
+        for l in lines[:consumed]:
+            body = re.sub(r"(<p>)?\s*" + re.escape(html.escape(l, quote=False)).replace("\\ ", "\\s+") + r"\s*(<br>\s*|</p>)?", "", body, count=1)
+        body = body.replace("<p></p>", "").strip()
+        alltext = " ".join(lines)
+        y = YEAR_RE.search(date)
+        year = int(y.group(1)) if y else next((int(r[:4]) for r in images if r[:4].isdigit() and r[:4] != "2017"), None)
+        if year is None:
+            y = YEAR_RE.search(alltext); year = int(y.group(1)) if y else None
+        entries.append({"title": title, "date": date, "year": year,
+                        "html": body + "".join(extra), "images": images, "plain": text_of(body),
+                        "press": bool(PRESS_RE.search(alltext))})
+    # Jahr fehlt -> vom vorherigen (neueren) Beitrag übernehmen; Upload-Jahr der Bilder als Rückfall
+    last = None
+    for e in entries:  # Beiträge stehen neueste zuerst: Jahr darf nicht größer als beim Vorgänger sein
+        if e["year"] is None or (last and e["year"] > last):
+            e["year"] = last
+        last = e["year"]
+    for e in entries:
+        if not e["title"]:
+            e["title"] = f'Bildbeitrag {e["year"]}' if e["year"] else "Bildbeitrag"
     used = set()
     for e in entries:
-        s = slugify(e["title"])[:60]; k = 2
-        while s in used: s = f"{slugify(e['title'])[:56]}-{k}"; k += 1
+        base = slugify(e["title"])[:60]
+        if e["title"].startswith("Bildbeitrag"): base = slugify(f'{e["title"]} {e["date"]}')[:60]
+        s = base; k = 2
+        while s in used: s = f"{base[:56]}-{k}"; k += 1
         used.add(s); e["slug"] = s
+        e["section"] = "presse" if e["press"] else "aktuell"
+
     def post(e, h="h2", link=True):
         im = "".join(img(r, e["title"], "(max-width:760px) 100vw, 30vw") for r in e["images"][:6])
-        head = f'<{h}><a href="/aktuell/{e["slug"]}/">{E(e["title"])}</a></{h}>' if link else f"<{h}>{E(e['title'])}</{h}>"
-        return f'<article class="post"><div>{head}<div class="prose">{e["html"]}</div></div><div class="imgs">{im}</div></article>'
-    top = "".join(post(e) for e in entries[:10])
-    def sq(e):
+        url = f'/{e["section"]}/{e["slug"]}/'
+        head = f'<{h}><a href="{url}">{E(e["title"])}</a></{h}>' if link else f"<{h}>{E(e['title'])}</{h}>"
+        meta = f'<p class="meta">{E(e["date"] or str(e["year"] or ""))}</p>' if (e["date"] or e["year"]) else ""
+        return f'<article class="post"><div>{meta}{head}<div class="prose">{e["html"]}</div></div><div class="imgs">{im}</div></article>'
+    def tile(e):
+        url = f'/{e["section"]}/{e["slug"]}/'
+        meta = E(e["date"] or "")
         if e["images"]:
-            return f'<a class="sq" href="/aktuell/{e["slug"]}/">{img(e["images"][0], e["title"], "180px")}<span>{E(e["title"][:70])}</span></a>'
-        return f'<a class="sq noimg" href="/aktuell/{e["slug"]}/"><span>{E(e["title"][:90])}</span></a>'
-    older = "".join(sq(e) for e in entries[10:])
-    body = f'''<div class="page"><div class="wrap"><h1>Aktuell</h1>{top}
-<div class="section-head"><h2>Ältere Beiträge</h2></div><div class="squares">{older}</div></div></div>'''
-    layout("/aktuell/", "Aktuell", "Neuigkeiten aus dem Büro SPALINK-SIEVERS LandschaftsArchitekten in Hannover: Eröffnungen, Vorträge, Veröffentlichungen und Exkursionen.", body, "/aktuell/")
-    for i, e in enumerate(entries):
+            return f'<a class="sq" href="{url}">{img(e["images"][0], e["title"], "(max-width:600px) 50vw, 220px")}<span><small>{meta}</small>{E(short(e["title"], 80))}</span></a>'
+        return f'<a class="sq noimg" href="{url}"><span><small>{meta}</small>{E(short(e["title"], 90))}</span></a>'
+    def by_year(items):
+        out, cur = [], None
+        for e in items:
+            if e["year"] != cur:
+                if cur is not None: out.append("</div>")
+                cur = e["year"]; out.append(f'<h3 class="year">{cur or "Ohne Datum"}</h3><div class="squares">')
+            out.append(tile(e))
+        if items: out.append("</div>")
+        return "".join(out)
+
+    news = [e for e in entries if not e["press"]]
+    press = [e for e in entries if e["press"]]
+    body = f'''<div class="page"><div class="wrap"><h1>Aktuell</h1>
+<p class="lead">Neuigkeiten aus dem Büro – Eröffnungen, Vorträge, Exkursionen. Presseberichte über unsere Projekte finden Sie unter <a href="/presse/">Presse</a>.</p>
+{"".join(post(e) for e in news[:10])}
+<div class="section-head"><h2>Ältere Beiträge</h2></div>{by_year(news[10:])}</div></div>'''
+    layout("/aktuell/", "Aktuell", "Neuigkeiten aus dem Büro SPALINK-SIEVERS LandschaftsArchitekten in Hannover: Eröffnungen, Vorträge, Exkursionen und Termine.", body, "/aktuell/")
+    body = f'''<div class="page"><div class="wrap"><h1>Presse</h1>
+<p class="lead">Berichte über unsere Projekte in Zeitungen, Fachzeitschriften und Mitgliedermagazinen. Eigene Fachbeiträge finden Sie unter <a href="/veroeffentlichungen/">Veröffentlichungen</a>.</p>
+{by_year(press)}</div></div>'''
+    layout("/presse/", "Presse", "Presseberichte über Projekte von SPALINK-SIEVERS LandschaftsArchitekten in Zeitungen, Fachzeitschriften und Magazinen.", body, "/aktuell/")
+    for e in entries:
         d = e["plain"][:150] + ("…" if len(e["plain"]) > 150 else "")
-        body = f'<div class="page"><div class="wrap">{post(e, "h1", False)}<nav class="pager"><a href="/aktuell/">← Alle Beiträge</a></nav></div></div>'
-        layout(f'/aktuell/{e["slug"]}/', e["title"], d or e["title"], body, "/aktuell/", og_image=largest(e["images"][0]) if e["images"] else "")
-    return entries
+        back = '<a href="/presse/">← Alle Presseberichte</a>' if e["press"] else '<a href="/aktuell/">← Alle Beiträge</a>'
+        body = f'<div class="page"><div class="wrap">{post(e, "h1", False)}<nav class="pager">{back}</nav></div></div>'
+        layout(f'/{e["section"]}/{e["slug"]}/', e["title"], d or e["title"], body, "/aktuell/", og_image=largest(e["images"][0]) if e["images"] else "")
+    return news
+
 
 # ---------- Feste Seiten ----------
 STATIC = {
@@ -380,7 +449,7 @@ HERO = ["2017/01/Slider_Herbst_2026-scaled.jpg", "2017/01/spalink-sievers-herbst
 def build_home(entries):
     slides = "".join(img(r, "Freianlagen von SPALINK-SIEVERS LandschaftsArchitekten in Hannover", "100vw", cls="on" if i == 0 else "", eager=i == 0) for i, r in enumerate(HERO))
     dots = "".join(f'<button type="button" aria-label="Bild {i+1}" aria-current="{str(i==0).lower()}"></button>' for i in range(len(HERO)))
-    cards = "".join(f'<a class="card" href="/projekte/{p["url_slug"]}/"><div class="ph">{img(p["thumb"] or p["images"][0], p["title"], "(max-width:600px) 100vw, 33vw")}</div><h3>{E(p["title"])}</h3><p>{E(" · ".join(p["tags"]))}</p></a>' for p in PROJECTS[:6])
+    cards = "".join(f'<a class="card" href="/projekte/{p["url_slug"]}/"><div class="ph">{img(p["thumb"] or p["images"][0], p["title"], "(max-width:600px) 100vw, 33vw")}<div class="ov"><h3>{E(p["title"])}</h3><p>{E(" · ".join(p["tags"]))}</p><i></i></div></div></a>' for p in PROJECTS[:6])
     news = "".join(f'<li><a href="/aktuell/{e["slug"]}/">{E(e["title"])}</a></li>' for e in entries[:4])
     body = f'''<section class="hero" aria-label="Bilder aus unseren Projekten">{slides}<div class="hero-dots">{dots}</div></section>
 <div class="page"><div class="wrap">
@@ -440,6 +509,9 @@ import datetime
 YEAR = datetime.date.today().year
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
+    for f in OUT.glob("**/index.html"): f.unlink()  # alte Seiten entfernen (Bilder bleiben als Cache)
+    for d in sorted(OUT.glob("**/"), reverse=True):
+        if d != OUT and not any(d.iterdir()): d.rmdir()
     assets()
     build_projects()
     entries = build_aktuell()
