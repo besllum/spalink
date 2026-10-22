@@ -485,6 +485,8 @@ def build_static():
         if p["slug"] not in STATIC: continue
         path, title, desc, active = STATIC[p["slug"]]
         content = render_vc(parse_vc(p["content"]["raw"]), title)
+        if p["slug"] == "kontakt":  # Impressum/Datenschutz stehen im Footer
+            content = re.sub(r"<p>(?:(?!</p>).)*/impressum/(?:(?!</p>).)*/datenschutz/(?:(?!</p>).)*</p>", "", content, flags=re.S)
         if p["slug"] == "impressum":
             content = content.replace("§ 5 Telemediengesetz (TMG)", "§ 5 Digitale-Dienste-Gesetz (DDG)")
         if p["slug"] == "datenschutzerklaerung":
