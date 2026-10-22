@@ -128,7 +128,7 @@ def layout(path, title, desc, body, active=None, og_image="", jsonld=None):
    <li><a href="/datenschutz/#cookies">Cookies</a></li>
    <li><a href="/datenschutz/#hosting">Hosting</a></li>
   </ul></nav>
-  <p class="copy">© {YEAR} {NAME} · Diese Website verwendet keine Cookies und kein Tracking.</p>
+  <p class="copy">© {YEAR} {NAME} · Diese Website setzt keine Cookies und verwendet kein Tracking.</p>
  </div>
 </footer>
 <script src="/assets/main.js?v={ASSET_V}" defer></script>
@@ -214,9 +214,23 @@ def parse_vc(raw):
     return root
 
 FRAC = {"1/2": .5, "1/3": 1/3, "2/3": 2/3, "1/4": .25, "3/4": .75, "1/6": 1/6, "5/6": 5/6}
+MAP_Q = "Alte+Herrenh%C3%A4user+Str.+28%2C+30419+Hannover"
+MAP_BLOCK = ('<div class="map" data-src="https://www.google.com/maps?q=' + MAP_Q + '&amp;z=16&amp;output=embed">'
+  '<div class="map-ph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>'
+  '<p><strong>Unser Büro auf der Karte</strong><br>Alte Herrenhäuser Str. 28 · 30419 Hannover-Herrenhausen</p>'
+  '<button type="button" class="map-load">Karte laden</button>'
+  '<p class="map-note">Beim Laden der Karte werden Daten (u. a. Ihre IP-Adresse) an Google übertragen. '
+  'Mehr dazu in der <a href="/datenschutz/#google-maps">Datenschutzerklärung</a>. '
+  'Oder: <a href="https://www.google.com/maps/search/?api=1&amp;query=' + MAP_Q + '" target="_blank" rel="noopener">in Google Maps öffnen</a>.</p></div></div>')
+
 def render_vc(node, alt=""):
     if isinstance(node, str):
-        return autop(fix_links(node))
+        # Karten-Shortcode des alten Themes -> einfacher Link (keine eingebettete Karte = keine Cookies)
+        node = re.sub(r"\[sth_googlemap[^\]]*\]\[/sth_googlemap\]|\[sth_googlemap[^\]]*\]",
+                      "%%MAP%%", node)
+        node = re.sub(r"\[/?sth_[^\]]*\]", "", node)  # übrige Theme-Shortcodes entfernen
+        out = autop(fix_links(node))
+        return re.sub(r"(<p>)?\s*%%MAP%%\s*(</p>|<br>)?", lambda m: MAP_BLOCK, out)
     t, a, kids = node["tag"], node["a"], node["kids"]
     inner = lambda: "".join(render_vc(k, alt) for k in kids)
     if t in ("root",): return inner()
@@ -456,7 +470,9 @@ LEGAL_EXTRA = """
 <h2 id="hosting">Hosting</h2>
 <div class="prose"><p>Diese Website wird bei der IONOS SE, Elgendorfer Str. 57, 56410 Montabaur, Deutschland, gehostet. Beim Aufruf der Website verarbeitet der Hoster die oben unter „Beim Besuch der Website“ genannten Zugriffsdaten (Server-Logfiles) in unserem Auftrag. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO; unser berechtigtes Interesse liegt in der sicheren und zuverlässigen Bereitstellung der Website. Mit dem Hoster besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO.</p></div>
 <h2 id="cookies">Cookies</h2>
-<div class="prose"><p>Diese Website setzt keine Cookies und verwendet keine Analyse- oder Tracking-Dienste. Schriften werden von unserem eigenen Server geladen; es werden keine Inhalte von Drittanbietern (z. B. Google Fonts, eingebettete Videos oder Karten) beim Seitenaufruf nachgeladen. Ein Cookie-Banner ist daher nicht erforderlich.</p></div>
+<div class="prose"><p>Diese Website selbst setzt keine Cookies und verwendet keine Analyse- oder Tracking-Dienste. Schriften werden von unserem eigenen Server geladen; beim Seitenaufruf werden keine Inhalte von Drittanbietern nachgeladen. Einzige Ausnahme ist die Karte auf der Kontaktseite: Sie wird nur geladen, wenn Sie dies ausdrücklich per Klick wünschen (siehe <a href="#google-maps">Google Maps</a>). Ein Cookie-Banner ist daher nicht erforderlich.</p></div>
+<h2 id="google-maps">Google Maps (nur nach Ihrer Zustimmung)</h2>
+<div class="prose"><p>Auf der Kontaktseite können Sie eine Karte von Google Maps anzeigen lassen. Anbieter ist die Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Die Karte wird erst geladen, wenn Sie auf „Karte laden“ klicken. Erst dann werden Daten wie Ihre IP-Adresse an Google übertragen; dabei kann eine Übermittlung in die USA nicht ausgeschlossen werden, und Google kann Cookies setzen. Rechtsgrundlage ist Ihre Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG), die Sie durch den Klick erteilen. Die Einwilligung gilt nur für den jeweiligen Seitenaufruf; beim nächsten Besuch wird die Karte nicht automatisch geladen. Weitere Informationen: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Datenschutzerklärung von Google</a>.</p></div>
 <h2 id="externe-links">Links zu anderen Websites</h2>
 <div class="prose"><p>Einige Seiten enthalten Links zu externen Angeboten (z. B. Instagram oder YouTube). Erst wenn Sie einen solchen Link anklicken, verlassen Sie unsere Website; für die Datenverarbeitung auf diesen Seiten ist der jeweilige Anbieter verantwortlich.</p></div>
 """

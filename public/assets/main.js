@@ -34,3 +34,8 @@ const sz=document.querySelector('.sizer input'),grid=document.querySelector('.gr
 if(sz&&grid){let v=null;try{v=localStorage.getItem('ss-cols')}catch(e){}
  if(v)sz.value=v;const set=()=>{grid.style.setProperty('--cols',sz.value);try{localStorage.setItem('ss-cols',sz.value)}catch(e){}};
  sz.addEventListener('input',set);set()}
+
+// Karte erst nach Klick laden (Datenschutz)
+document.querySelectorAll('.map').forEach(m=>{const b=m.querySelector('.map-load');if(!b)return;
+ b.addEventListener('click',()=>{const f=document.createElement('iframe');f.src=m.dataset.src;f.title='Karte: Büro SPALINK-SIEVERS LandschaftsArchitekten';
+  f.loading='lazy';f.referrerPolicy='no-referrer-when-downgrade';f.allowFullscreen=true;m.querySelector('.map-ph').replaceWith(f)})});
