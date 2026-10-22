@@ -28,3 +28,9 @@ if(g){const items=[...g.querySelectorAll('button')];const d=document.createEleme
  d.querySelector('.x').onclick=()=>d.close();d.querySelector('.prev').onclick=()=>open(k-1);d.querySelector('.next').onclick=()=>open(k+1);
  d.addEventListener('click',e=>{if(e.target===d||e.target.tagName==='FIGURE')d.close()});
  d.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')open(k-1);if(e.key==='ArrowRight')open(k+1)})}
+
+// Bildgröße im Projektraster (mehr/weniger Projekte pro Zeile)
+const sz=document.querySelector('.sizer input'),grid=document.querySelector('.grid.sized');
+if(sz&&grid){let v=null;try{v=localStorage.getItem('ss-cols')}catch(e){}
+ if(v)sz.value=v;const set=()=>{grid.style.setProperty('--cols',sz.value);try{localStorage.setItem('ss-cols',sz.value)}catch(e){}};
+ sz.addEventListener('input',set);set()}
