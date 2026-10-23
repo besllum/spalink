@@ -177,8 +177,7 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 .intro h1,.intro .lead{margin-top:0}
 .intro h1{line-height:1.3;padding-top:.1em}
 
-/* Größenregler immer rechts neben den Filtern */
-.toolbar{flex-wrap:nowrap;align-items:flex-start}
-.toolbar .filters{flex:1 1 auto}
-.sizer{margin-left:auto;padding-top:6px}
+/* Größenregler unter den Filtern, rechtsbündig */
+.toolbar{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:14px}
+.sizer{align-self:flex-end;padding-top:0}
 @media (max-width:700px){.sizer{display:none}}
