@@ -593,9 +593,12 @@ import datetime
 YEAR = datetime.date.today().year
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
-    for f in OUT.glob("**/index.html"): f.unlink()  # alte Seiten entfernen (Bilder bleiben als Cache)
-    for d in sorted(OUT.glob("**/"), reverse=True):
-        if d != OUT and not any(d.iterdir()): d.rmdir()
+    try:  # alte Seiten entfernen (Bilder bleiben als Cache); ohne Löschrecht werden sie einfach überschrieben
+        for f in OUT.glob("**/index.html"): f.unlink()
+        for d in sorted(OUT.glob("**/"), reverse=True):
+            if d != OUT and not any(d.iterdir()): d.rmdir()
+    except PermissionError:
+        print("  Hinweis: alte Seiten nicht gelöscht (keine Löschberechtigung) – werden überschrieben")
     assets()
     build_projects()
     entries = build_aktuell()
