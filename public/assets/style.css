@@ -181,3 +181,11 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 .toolbar{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:14px}
 .sizer{align-self:flex-end;padding-top:0}
 @media (max-width:700px){.sizer{display:none}}
+
+/* Team: alle Spalten gleich breit (auch einzelne in der letzten Reihe), Fotos im Format 3:4 */
+.team .wp-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--gap)}
+@media (max-width:760px){.team .wp-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:440px){.team .wp-row{grid-template-columns:1fr}}
+.team .wp-col{min-width:0}
+.team figure img{width:100%;aspect-ratio:3/4;object-fit:cover}
+.team figure img[src*="pucky"]{aspect-ratio:1/1}

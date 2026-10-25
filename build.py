@@ -228,6 +228,13 @@ MAP_BLOCK = ('<div class="map" data-src="https://www.google.com/maps?q=' + MAP_Q
   'Mehr dazu in der <a href="/datenschutz/#google-maps">Datenschutzerklärung</a>. '
   'Oder: <a href="https://www.google.com/maps/search/?api=1&amp;query=' + MAP_Q + '" target="_blank" rel="noopener">in Google Maps öffnen</a>.</p></div></div>')
 
+# Austausch einzelner Fotos ohne Änderung der Seiteninhalte (alt -> neu, Pfade in ../medien)
+IMAGE_OVERRIDE = {
+    "2017/06/Marie_111.jpg": "2026/10/team-marie-sophie-2026.jpg",
+    "2025/12/timo.jpg": "2026/10/team-timo-2026.jpg",
+    "2020/07/pucky3.jpg": "2020/07/pucky-quadrat.jpg",
+}
+
 def render_vc(node, alt=""):
     if isinstance(node, str):
         # Karten-Shortcode des alten Themes -> einfacher Link (keine eingebettete Karte = keine Cookies)
@@ -248,6 +255,7 @@ def render_vc(node, alt=""):
     if t == "vc_column_text": return f'<div class="prose">{inner()}</div>'
     if t == "vc_single_image":
         rel = MEDIA_BY_ID.get(int(a.get("image", 0) or 0))
+        rel = IMAGE_OVERRIDE.get(rel, rel)
         return f"<figure>{img(rel, alt)}</figure>" if rel else ""
     if t == "vc_gallery":
         return "".join(f"<figure>{img(MEDIA_BY_ID[int(i)], alt)}</figure>" for i in a.get("images", "").split(",") if i.isdigit() and int(i) in MEDIA_BY_ID)
