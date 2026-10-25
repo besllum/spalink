@@ -230,7 +230,7 @@ MAP_BLOCK = ('<div class="map" data-src="https://www.google.com/maps?q=' + MAP_Q
 
 # Austausch einzelner Fotos ohne Änderung der Seiteninhalte (alt -> neu, Pfade in ../medien)
 IMAGE_OVERRIDE = {
-    "2017/06/Marie_111.jpg": "2026/10/team-marie-sophie-2026.jpg",
+    "2026/10/Alina.jpg": "2026/10/team-alina-2026.jpg",
     "2025/12/timo.jpg": "2026/10/team-timo-2026.jpg",
     "2020/07/pucky3.jpg": "2020/07/pucky-quadrat.jpg",
 }
