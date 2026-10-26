@@ -198,3 +198,9 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 .nav a,.subnav a{border-bottom:0;padding-bottom:6px;background:linear-gradient(var(--logo-line),var(--logo-line)) left bottom/0 1.5px no-repeat}
 .nav a:hover,.nav a[aria-current=page],.subnav a:hover,.subnav a[aria-current=page]{background-size:100% 1.5px}
 @media (max-width:860px){.nav a{padding-bottom:12px;background:none;border-bottom:1px solid var(--line)}}
+
+/* Diashow: Klick rechts = weiter, links = zurück (Mauszeiger zeigt die Richtung) */
+.hero{cursor:pointer;user-select:none}
+.hero[data-side=next]{cursor:e-resize}
+.hero[data-side=prev]{cursor:w-resize}
+.hero-dots button{cursor:pointer}

@@ -7,7 +7,11 @@ const hero=document.querySelector('.hero');
 if(hero){const imgs=[...hero.querySelectorAll('img')],dots=[...hero.querySelectorAll('.hero-dots button')];let i=0,timer;
  const show=k=>{imgs[i].classList.remove('on');dots[i]?.setAttribute('aria-current','false');i=(k+imgs.length)%imgs.length;imgs[i].classList.add('on');dots[i]?.setAttribute('aria-current','true')};
  const play=()=>{if(!matchMedia('(prefers-reduced-motion: reduce)').matches)timer=setInterval(()=>show(i+1),6000)};
- dots.forEach((d,k)=>d.addEventListener('click',()=>{clearInterval(timer);show(k);play()}));play()}
+ dots.forEach((d,k)=>d.addEventListener('click',e=>{e.stopPropagation();clearInterval(timer);show(k);play()}));
+ // Klick auf die rechte Bildhälfte = nächstes Foto, linke Hälfte = vorheriges
+ hero.addEventListener('click',e=>{const r=hero.getBoundingClientRect();clearInterval(timer);show(e.clientX-r.left>r.width/2?i+1:i-1);play()});
+ hero.addEventListener('mousemove',e=>{const r=hero.getBoundingClientRect();hero.dataset.side=e.clientX-r.left>r.width/2?'next':'prev'});
+ play()}
 
 // Projektfilter
 const f=document.querySelector('.filters');
