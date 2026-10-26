@@ -191,3 +191,8 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 .team figure img[src*="pucky"]{aspect-ratio:1/1}
 
 .sizer .count{margin-right:14px;letter-spacing:.06em;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* Menü-Unterstreichung wie die Linie im Logo: gleiche Stärke (1,5 px) und gleicher Abstand zur Schrift (8 px) */
+.nav a{border-bottom-width:1.5px;padding-bottom:5px}
+.subnav a{border-bottom-width:1.5px}
+@media (max-width:860px){.nav a{border-bottom-width:1px;padding-bottom:12px}}
