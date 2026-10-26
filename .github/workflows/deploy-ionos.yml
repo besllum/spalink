@@ -1,0 +1,72 @@
+# Überträgt die fertige Website (Ordner public/) per SFTP zu IONOS in /website-neu.
+# Läuft, sobald der Branch "live" aktualisiert wird ("passt, live"), oder per Hand unter Actions.
+# Es werden nur geänderte Dateien hochgeladen; gelöschte Seiten werden auf dem Server entfernt.
+# Benötigte Secrets (Settings → Secrets and variables → Actions): SFTP_HOST, SFTP_USER, SFTP_PASSWORD
+name: Live zu IONOS
+
+on:
+  push:
+    branches: [live]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ionos
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      REMOTE_DIR: /website-neu
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: lftp installieren
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      - name: Zuletzt übertragenen Stand vom Server holen
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: |
+          lftp -e "set sftp:auto-confirm yes; set net:max-retries 3; get -O /tmp $REMOTE_DIR/.deploy-sha; bye" \
+               -u "$SFTP_USER","$SFTP_PASSWORD" "sftp://$SFTP_HOST" || true
+          if [ -s /tmp/.deploy-sha ] && git cat-file -e "$(cat /tmp/.deploy-sha)^{commit}" 2>/dev/null; then
+            echo "LAST=$(cat /tmp/.deploy-sha)" >> "$GITHUB_ENV"
+          fi
+
+      - name: Übertragungsliste erstellen
+        run: |
+          : > /tmp/cmds
+          if [ -n "$LAST" ]; then
+            echo "Übertrage Änderungen seit $LAST"
+            git diff --name-status --no-renames "$LAST" HEAD -- public/ | while IFS=$'\t' read -r st f; do
+              rel="${f#public/}"
+              case "$rel" in *.DS_Store) continue;; esac
+              if [ "$st" = "D" ]; then
+                echo "rm -f \"$REMOTE_DIR/$rel\"" >> /tmp/cmds
+              else
+                echo "mkdir -p -f \"$REMOTE_DIR/$(dirname "$rel")\"" >> /tmp/cmds
+                echo "put \"$f\" -o \"$REMOTE_DIR/$rel\"" >> /tmp/cmds
+              fi
+            done
+          else
+            echo "Kein früherer Stand gefunden – vollständige Übertragung"
+            echo "mirror -R --parallel=4 --exclude-glob .DS_Store public/ $REMOTE_DIR/" >> /tmp/cmds
+          fi
+          echo "$GITHUB_SHA" > /tmp/.deploy-sha
+          echo "put /tmp/.deploy-sha -o \"$REMOTE_DIR/.deploy-sha\"" >> /tmp/cmds
+          echo "Befehle: $(wc -l < /tmp/cmds)"; head -40 /tmp/cmds
+
+      - name: Zu IONOS übertragen
+        env:
+          SFTP_HOST: ${{ secrets.SFTP_HOST }}
+          SFTP_USER: ${{ secrets.SFTP_USER }}
+          SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
+        run: |
+          { echo "set sftp:auto-confirm yes; set net:max-retries 3; set cmd:fail-exit yes"; cat /tmp/cmds; echo bye; } > /tmp/script
+          lftp -u "$SFTP_USER","$SFTP_PASSWORD" "sftp://$SFTP_HOST" -f /tmp/script
+          echo "Fertig – live unter https://spalink-sievers.de"
