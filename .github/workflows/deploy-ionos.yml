@@ -74,7 +74,7 @@ jobs:
             exit 1
           fi
           echo "::notice title=Verbunden::Ordner im Webspace: $(tr '\n' ' ' < /tmp/root.txt)"
-          if ! lftp -u "$SFTP_USER","$SFTP_PASSWORD" "sftp://$SFTP_HOST" -f /tmp/script > /tmp/deploy.log 2>&1; then
+          if ! lftp -u "$SFTP_USER","$SFTP_PASSWORD" -e "source /tmp/script" "sftp://$SFTP_HOST" > /tmp/deploy.log 2>&1; then
             echo "::error title=Übertragung fehlgeschlagen::$(tail -8 /tmp/deploy.log | tr '\n' ' ' | sed "s/$SFTP_PASSWORD/***/g")"
             exit 1
           fi
