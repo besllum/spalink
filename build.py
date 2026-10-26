@@ -564,7 +564,8 @@ def build_meta():
            "<IfModule mod_expires.c>", " ExpiresActive On", ' ExpiresByType image/webp "access plus 1 year"',
            ' ExpiresByType font/woff2 "access plus 1 year"', ' ExpiresByType text/css "access plus 1 month"',
            ' ExpiresByType application/javascript "access plus 1 month"', "</IfModule>",
-           "AddType font/woff2 .woff2", "AddType image/webp .webp"]
+           "AddType font/woff2 .woff2", "AddType image/webp .webp",
+           "RewriteRule ^\\.deploy-sha$ - [F,L]"]
     (OUT / ".htaccess").write_text("\n".join(ht) + "\n")
     vercel = {"buildCommand": "", "outputDirectory": "public", "framework": None, "cleanUrls": False, "trailingSlash": True,
               "redirects": [{"source": a, "destination": b, "permanent": True} for a, b in redirects] +
