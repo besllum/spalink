@@ -55,7 +55,7 @@ jobs:
             done
           else
             echo "Kein früherer Stand gefunden – vollständige Übertragung"
-            echo "mirror -R --parallel=4 --exclude-glob .DS_Store public/ $REMOTE_DIR/" >> /tmp/cmds
+            echo "mirror -R --no-perms --parallel=4 --exclude-glob .DS_Store public/ $REMOTE_DIR/" >> /tmp/cmds
           fi
           echo "$GITHUB_SHA" > /tmp/.deploy-sha
           echo "put /tmp/.deploy-sha -o \"$REMOTE_DIR/.deploy-sha\"" >> /tmp/cmds
@@ -68,5 +68,14 @@ jobs:
           SFTP_PASSWORD: ${{ secrets.SFTP_PASSWORD }}
         run: |
           { echo "set sftp:auto-confirm yes; set net:max-retries 3; set cmd:fail-exit yes"; cat /tmp/cmds; echo bye; } > /tmp/script
-          lftp -u "$SFTP_USER","$SFTP_PASSWORD" "sftp://$SFTP_HOST" -f /tmp/script
-          echo "Fertig – live unter https://spalink-sievers.de"
+          # Verbindungstest (Fehlermeldung erscheint als Hinweis im Durchlauf)
+          if ! lftp -e "set sftp:auto-confirm yes; set net:max-retries 2; set net:timeout 30; cls -1 / > /tmp/root.txt; bye" -u "$SFTP_USER","$SFTP_PASSWORD" "sftp://$SFTP_HOST" > /tmp/test.log 2>&1; then
+            echo "::error title=Verbindung zu IONOS fehlgeschlagen::$(tail -5 /tmp/test.log | tr '\n' ' ' | sed "s/$SFTP_PASSWORD/***/g")"
+            exit 1
+          fi
+          echo "::notice title=Verbunden::Ordner im Webspace: $(tr '\n' ' ' < /tmp/root.txt)"
+          if ! lftp -u "$SFTP_USER","$SFTP_PASSWORD" "sftp://$SFTP_HOST" -f /tmp/script > /tmp/deploy.log 2>&1; then
+            echo "::error title=Übertragung fehlgeschlagen::$(tail -8 /tmp/deploy.log | tr '\n' ' ' | sed "s/$SFTP_PASSWORD/***/g")"
+            exit 1
+          fi
+          echo "::notice title=Fertig::$(wc -l < /tmp/cmds) Schritte übertragen – live unter https://spalink-sievers.de"
