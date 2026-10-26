@@ -466,7 +466,7 @@ def build_aktuell():
     rest = [e for e in news if e["year"] != top_year]
     press = [e for e in entries if e["press"]]
     body = f'''<div class="page"><div class="wrap"><h1>Aktuell</h1>
-<p class="lead">Neuigkeiten aus dem Büro – Eröffnungen, Vorträge, Exkursionen. Presseberichte über unsere Projekte finden Sie unter <a href="/presse/">Presse</a>.</p>
+<p class="lead">Neuigkeiten aus dem Büro – Eröffnungen, Vorträge, Exkursionen.<br>Presseberichte über unsere Projekte finden Sie unter <a href="/presse/">Presse</a>.</p>
 {"".join(post(e) for e in top)}
 <div class="section-head"><h2>Ältere Beiträge</h2></div>{by_year(rest)}</div></div>'''
     layout("/aktuell/", "Aktuell", "Neuigkeiten aus dem Büro SPALINK-SIEVERS LandschaftsArchitekten in Hannover: Eröffnungen, Vorträge, Exkursionen und Termine.", body, "/aktuell/")
