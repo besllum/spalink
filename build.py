@@ -322,8 +322,8 @@ def build_projects():
 <h1>Projekte</h1>
 <p class="lead">Eine Auswahl unserer realisierten Freianlagen, Spielplätze, Plätze und Gärten – von Hannover bis Hamburg, Bremen, Göttingen und Würzburg.</p>
 <div class="toolbar"><div class="filters" role="group" aria-label="Nach Kategorie filtern">{filt}</div>
-<label class="sizer"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="6" height="6"/><rect x="9" y="1" width="6" height="6"/><rect x="1" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6"/></svg>
-<span class="sr">Bildgröße</span><input type="range" min="2" max="6" step="1" value="3" aria-label="Projekte pro Zeile"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14"/></svg></label></div>
+<label class="sizer"><span class="count" aria-live="polite"></span><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="6" height="6"/><rect x="9" y="1" width="6" height="6"/><rect x="1" y="9" width="6" height="6"/><rect x="9" y="9" width="6" height="6"/></svg>
+<span class="sr">Bildgröße</span><input type="range" min="2" max="6" step="1" value="5" aria-label="Bildgröße"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1" y="1" width="14" height="14"/></svg></label></div>
 <div class="grid sized">{"".join(cards)}</div>
 </div></div>'''
     layout("/projekte/", "Projekte", "Projekte von SPALINK-SIEVERS LandschaftsArchitekten: Freianlagen im Geschosswohnungsbau, Spielplätze, Kitas, Schulhöfe, Stadtplätze und Hausgärten.", body, "/projekte/",

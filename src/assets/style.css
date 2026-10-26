@@ -189,3 +189,5 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 .team .wp-col{min-width:0}
 .team figure img{width:100%;aspect-ratio:3/4;object-fit:cover}
 .team figure img[src*="pucky"]{aspect-ratio:1/1}
+
+.sizer .count{margin-right:14px;letter-spacing:.06em;color:var(--muted);font-variant-numeric:tabular-nums}

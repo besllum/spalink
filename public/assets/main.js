@@ -29,13 +29,13 @@ if(g){const items=[...g.querySelectorAll('button')];const d=document.createEleme
  d.addEventListener('click',e=>{if(e.target===d||e.target.tagName==='FIGURE')d.close()});
  d.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')open(k-1);if(e.key==='ArrowRight')open(k+1)})}
 
-// Bildgröße im Projektraster (mehr/weniger Projekte pro Zeile)
+// Bildgröße im Projektraster: Regler nach rechts = größere Bilder (weniger pro Zeile)
 const sz=document.querySelector('.sizer input'),grid=document.querySelector('.grid.sized');
-if(sz&&grid){let v=null;try{v=localStorage.getItem('ss-cols')}catch(e){}
- if(v)sz.value=v;const set=()=>{grid.style.setProperty('--cols',sz.value);try{localStorage.setItem('ss-cols',sz.value)}catch(e){}};
+if(sz&&grid){let v=null;try{v=localStorage.getItem('ss-size')}catch(e){}
+ if(v)sz.value=v;const set=()=>{grid.style.setProperty('--cols',8-sz.value);try{localStorage.setItem('ss-size',sz.value)}catch(e){}};
  sz.addEventListener('input',set);set()}
-
-// Karte erst nach Klick laden (Datenschutz)
-document.querySelectorAll('.map').forEach(m=>{const b=m.querySelector('.map-load');if(!b)return;
- b.addEventListener('click',()=>{const f=document.createElement('iframe');f.src=m.dataset.src;f.title='Karte: Büro SPALINK-SIEVERS LandschaftsArchitekten';
-  f.loading='lazy';f.referrerPolicy='no-referrer-when-downgrade';f.allowFullscreen=true;m.querySelector('.map-ph').replaceWith(f)})});
+// Anzahl sichtbarer Projekte
+const cnt=document.querySelector('.sizer .count');
+if(cnt){const cards=[...document.querySelectorAll('.grid .card')];
+ const upd=()=>{const n=cards.filter(c=>!c.hidden).length;cnt.textContent=n+' / '+cards.length+' Projekte'};
+ upd();document.querySelector('.filters')?.addEventListener('click',()=>setTimeout(upd,0))}
