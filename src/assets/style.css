@@ -192,7 +192,9 @@ dialog.lb::backdrop{background:rgba(15,15,15,.92)}
 
 .sizer .count{margin-right:14px;letter-spacing:.06em;color:var(--muted);font-variant-numeric:tabular-nums}
 
-/* Menü-Unterstreichung wie die Linie im Logo: gleiche Stärke (1,5 px) und gleicher Abstand zur Schrift (8 px) */
-.nav a{border-bottom-width:1.5px;padding-bottom:5px}
-.subnav a{border-bottom-width:1.5px}
-@media (max-width:860px){.nav a{border-bottom-width:1px;padding-bottom:12px}}
+/* Menü-Unterstreichung wie die Linie im Logo: gleiche Farbe, 1,5 px stark, ca. 8 px unter der Schrift.
+   Als Hintergrund gezeichnet, weil Browser Rahmen auf ganze Pixel runden. */
+:root{--logo-line:#4dae28}
+.nav a,.subnav a{border-bottom:0;padding-bottom:6px;background:linear-gradient(var(--logo-line),var(--logo-line)) left bottom/0 1.5px no-repeat}
+.nav a:hover,.nav a[aria-current=page],.subnav a:hover,.subnav a[aria-current=page]{background-size:100% 1.5px}
+@media (max-width:860px){.nav a{padding-bottom:12px;background:none;border-bottom:1px solid var(--line)}}
